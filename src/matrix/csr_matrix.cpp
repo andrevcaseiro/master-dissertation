@@ -55,7 +55,8 @@ T& CSRMatrix<T>::at(int row, int column) {
     auto res = std::lower_bound(row_begin, row_end, column);
 
     if (*res != column) {
-        throw std::domain_error("Attempted to access a null entry of a sparse matrix.");
+        throw std::domain_error("Attempted to access a null entry of a sparse matrix at " +
+                                std::to_string(row) + "," + std::to_string(column) + ".");
     }
 
     return _values[std::distance(_column_indexes.begin(), res)];
