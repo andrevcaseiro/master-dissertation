@@ -1,19 +1,19 @@
 #pragma once
 #include <random>
 
-#include "matrix/CSRMatrix.h"
+#include "matrix/csr_matrix.h"
 
 class MCME {
    private:
-    CSRMatrix<float> A;
-    std::vector<float> x_0;
-    float t;
-    int i;
-    int M;
-    int N;
-    int seed;
+    CSRMatrix<float> _matrix;
+    std::vector<float> _x_0;
+    float _t;
+    int _i;
+    int _M;
+    int _N;
+    int _seed;
 
-    std::mt19937 gen;
+    std::mt19937 _gen;
 
     float generate_time(int current_state);
 

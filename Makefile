@@ -1,9 +1,9 @@
 #!/usr/bin/make -f
 
 CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Wextra -Iexternal/CLI11/include
+CXXFLAGS = -std=c++17 -Wall -Wextra
 
-SRCS = src/main.cpp src/matrix/CSRMatrix.cpp src/MCME.cpp
+SRCS = src/main.cpp src/matrix/csr_matrix.cpp src/mcme.cpp
 OBJS = $(SRCS:.cpp=.o)
 
 TARGET = main

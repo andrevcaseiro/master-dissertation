@@ -1,16 +1,17 @@
+#include <iomanip>
 #include <iostream>
 #include <vector>
 
-#include "MCME.h"
-#include "matrix/CSRMatrix.h"
+#include "matrix/csr_matrix.h"
+#include "mcme.h"
 
 /* Prints usage message to cout
  * Returns 0 */
 int exec_help() {
     std::cout << "Usage: main command" << std::endl;
     std::cout << "\nCommands:" << std::endl;
-    std::cout << "help: displays this help message" << std::endl;
-    std::cout << "test: tests matrix exponential" << std::endl;
+    std::cout << "  help: displays this help message" << std::endl;
+    std::cout << "  expm: tests matrix exponential" << std::endl;
     return 0;
 }
 
@@ -21,34 +22,35 @@ int exec_help() {
  * @param argv contains the number of cli arguments
  * @return int 0 on success
  */
-int exec_test(int argc, char* argv[]) {
-    if (argc != 5) {
-        std::cout << "Usage: matrix-filepath entry M N seed" << std::endl;
+int exec_expm(int argc, char* argv[]) {
+    if (argc != 4) {
+        std::cout << "Usage: expm matrix-filepath M N seed" << std::endl;
         return 1;
     }
 
     std::string matrix_filepath(argv[0]);
-    int entry = atoi(argv[1]);
-    int M = atoi(argv[2]);
-    int N = atoi(argv[3]);
-    int seed = atoi(argv[4]);
+    int M = atoi(argv[1]);
+    int N = atoi(argv[2]);
+    int seed = atoi(argv[3]);
 
     CSRMatrix<float> matrix(matrix_filepath);
+    std::cout << "Full matrix:" << std::endl;
     matrix.print();
+    std::cout << std::endl;
+    std::cout << "Sparce matrix:" << std::endl;
     matrix.print_csr();
+    std::cout << std::endl;
 
-    for (int row = 0; row < matrix.get_rows(); row++) {
-        std::vector<float> v(matrix.get_columns(), 0);
-        v[row] = 1;
+    std::cout << "Matrix exponential:" << std::endl;
+    for (int row = 0; row < matrix.rows(); row++) {
+        for (int col = 0; col < matrix.columns(); col++) {
+            std::vector<float> v(matrix.columns(), 0);
+            v[col] = 1;
 
-        /* for(auto it: v) {
-            std::cout << it;
-        }
-        std::cout << std::endl; */
-
-        for (int col = 0; col < matrix.get_columns(); col++) {
-            MCME mcme(matrix, v, 1, col, M, N, seed);
-            std::cout << mcme.calculate() << " ";
+            MCME mcme(matrix, v, 1, row, M, N, seed);
+            std::cout << std::setw(10) << std::fixed
+                      << std::setprecision(5)  // Adjust width & precision
+                      << mcme.calculate() << " ";
         }
         std::cout << std::endl;
     }
@@ -66,8 +68,11 @@ int main(int argc, char* argv[]) {
 
     if (command == "help") {
         return exec_help();
-    } else if (command == "test") {
-        return exec_test(argc - 2, &argv[2]);
+    } else if (command == "expm") {
+        return exec_expm(argc - 2, &argv[2]);
+    } else {
+        exec_help();
+        return 1;
     }
 
     return 0;
