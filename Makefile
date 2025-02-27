@@ -3,7 +3,7 @@
 CXX = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra
 
-SRCS = src/main.cpp src/matrix/csr_matrix.cpp src/mcme.cpp
+SRCS = src/main.cpp src/matrix/csrd_matrix.cpp src/mcme.cpp
 OBJS = $(SRCS:.cpp=.o)
 
 TARGET = main

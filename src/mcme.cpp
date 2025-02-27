@@ -15,22 +15,16 @@ float MCME::generate_time(int current_state) {
 }
 
 int MCME::generate_state(int current_state) {
-    std::vector<float> weights;
-    std::vector<int> columns;
-    for (auto it : _matrix.row(current_state)) {
-        if (it.column() != current_state) {
-            weights.emplace_back(it.value());
-            columns.emplace_back(it.column());
-        }
-    }
+    auto row = _matrix.row(current_state);
 
-    // TODO: avoid creating vectors every iteration (iterator?)
-
-    std::discrete_distribution<> dist(weights.begin(), weights.end());
+    std::discrete_distribution<> dist(row.begin_off_diagonal_values(),
+                                      row.end_off_diagonal_values());
 
     int column_index = dist(_gen);
 
-    return columns[column_index];
+    int new_state = *(row.begin_off_diagonal_columns() + column_index);
+
+    return new_state;
 }
 
 MCME::MCME(CSRMatrix<float> A, std::vector<float> x_0, float t, int i, int M, int N, int seed)

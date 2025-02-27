@@ -4,7 +4,7 @@
 #include <iostream>
 #include <vector>
 
-#include "matrix/csr_matrix.h"
+#include "matrix/csrd_matrix.h"
 #include "mcme.h"
 
 /* Prints usage message to cout
