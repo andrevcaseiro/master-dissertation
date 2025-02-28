@@ -13,11 +13,11 @@ class MCME {
     int _N;
     int _seed;
 
-    std::mt19937 _gen;
+    template <typename Generator>
+    float generate_time(Generator& gen, int current_state);
 
-    float generate_time(int current_state);
-
-    int generate_state(int current_state);
+    template <typename Generator>
+    int generate_state(Generator& gen, int current_state);
 
    public:
     /**
