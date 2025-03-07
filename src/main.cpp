@@ -119,6 +119,29 @@ int exec_expm_test(int argc, char* argv[]) {
     return 0;
 }
 
+/**
+ * @brief Calculates average accuracy of matrix exponential for a
+ *
+ * @param argc must be 1
+ * @param argv (test directory path, M, N, seed)
+ * @return int
+ */
+int exec_expm_test_coo(int argc, char* argv[]) {
+    if (argc != 1) {
+        std::cout << "Usage: expm-test matrix-filepath" << std::endl;
+        return 1;
+    }
+
+    std::string filepath(argv[0]);
+
+    CSRMatrix<float> matrix = CSRMatrix<float>::from_coo(filepath);
+
+    matrix.print_csr();
+    matrix.print();
+
+    return 0;
+}
+
 int main(int argc, char* argv[]) {
     if (argc < 2) {
         exec_help();
@@ -133,6 +156,8 @@ int main(int argc, char* argv[]) {
         return exec_expm(argc - 2, &argv[2]);
     } else if (command == "expm-test") {
         return exec_expm_test(argc - 2, &argv[2]);
+    } else if (command == "expm-test-coo") {
+        return exec_expm_test_coo(argc - 2, &argv[2]);
     } else {
         exec_help();
         return 1;

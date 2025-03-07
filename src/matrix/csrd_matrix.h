@@ -24,6 +24,8 @@ class CSRMatrix {
     std::vector<int> _column_indexes;
     std::vector<T> _values;
 
+    CSRMatrix();
+
    public:
     /**
      * @brief Construct a new CSRMatrix object
@@ -33,6 +35,22 @@ class CSRMatrix {
      * @param force_diagonal if true, all diagonal entries are stored even if their value is nul
      */
     CSRMatrix(const std::string& filepath);
+
+    /**
+     * @brief Constructs a new CSRMatrix from a file describing the matrix in coordinate format
+     * 
+     * The first line of the file should contain:
+     * 
+     * - rows, columns, nnz
+     * 
+     * Followed by nnz lines containing:
+     * 
+     * - row, column, value
+     * 
+     * @param filepath 
+     * @return CSRMatrix<T> 
+     */
+    static CSRMatrix<T> from_coo(const std::string& filepath);
 
     /**
      * @brief Number of rows

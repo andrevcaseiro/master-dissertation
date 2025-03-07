@@ -2,7 +2,11 @@
 
 #include <fstream>
 #include <iostream>
+#include <list>
 #include <sstream>
+
+template <typename T>
+CSRMatrix<T>::CSRMatrix() : _rows(0), _columns(0) {}
 
 template <typename T>
 CSRMatrix<T>::CSRMatrix(const std::string& filepath) {
@@ -55,6 +59,92 @@ CSRMatrix<T>::CSRMatrix(const std::string& filepath) {
 
         _row_pointers.push_back(_values.size());
     }
+}
+
+template <typename T>
+CSRMatrix<T> CSRMatrix<T>::from_coo(const std::string& filepath) {
+    CSRMatrix<T> m;
+
+    std::ifstream file(filepath);
+    if (!file) {
+        throw std::runtime_error("Error: Could not open file");
+    }
+
+    std::string line;
+    getline(file, line);
+    std::stringstream ss(line);
+    std::string token;
+
+    int nnz;
+    try {
+        std::getline(ss, token, ',');
+        m._rows = stoi(token);
+
+        std::getline(ss, token, ',');
+        m._columns = stoi(token);
+
+        std::getline(ss, token, ',');
+        nnz = std::stoi(token);
+    } catch (const std::exception& e) {
+        throw std::runtime_error("Error: Failed to read matrix size");
+    }
+
+    std::vector<std::list<std::pair<int, T>>> data(m._rows, std::list<std::pair<int, T>>());
+
+    std::vector<T> diagonal(m._rows, 0);
+
+    for (int i = 0; i < nnz; ++i) {
+        getline(file, line);
+
+        std::stringstream ss(line);
+
+        int row, col;
+        T value;
+
+        try {
+            std::getline(ss, token, ',');
+            row = std::stoi(token);
+
+            std::getline(ss, token, ',');
+            col = std::stoi(token);
+
+            std::getline(ss, token, ',');
+            value = static_cast<T>(std::stod(token));
+        } catch (const std::exception& e) {
+            throw std::runtime_error("Error: Failed to parse matrix entries");
+        }
+
+        // Correct matlab indexes starting at 1
+        --row;
+        --col;
+        if (row == col) {
+            diagonal[row] = value;
+            continue;
+        }
+
+        data[row].emplace_back(col, value);
+    }
+
+    for (int row = 0; row < m._rows; ++row) {
+        data[row].sort();
+    }
+
+    m._row_pointers.reserve(m._rows + 1);
+    m._column_indexes.reserve(nnz);
+    m._values.reserve(nnz);
+
+    m._row_pointers.emplace_back(0);
+    for (int row = 0; row < m._rows; ++row) {
+        m._column_indexes.emplace_back(row);
+        m._values.emplace_back(diagonal[row]);
+        for (auto entry: data[row]) {
+            m._column_indexes.emplace_back(entry.first);
+            m._values.emplace_back(entry.second);
+        }
+        m._row_pointers.emplace_back(m._values.size());
+    }
+
+    return m;
 }
 
 template <typename T>
