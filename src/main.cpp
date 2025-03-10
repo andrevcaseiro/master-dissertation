@@ -1,3 +1,5 @@
+#include <omp.h>
+
 #include <algorithm>
 #include <filesystem>
 #include <iomanip>
@@ -11,7 +13,8 @@
  * Returns 0 */
 int exec_help() {
     std::cout << "Usage: main command" << std::endl;
-    std::cout << "\nCommands:" << std::endl;
+    std::cout << std::endl;
+    std::cout << "Commands:" << std::endl;
     std::cout << "  help: displays this help message" << std::endl;
     std::cout << "  expm: calculates the matrix exponential" << std::endl;
     std::cout << "  expm-test: tests the accuracy of the matrix exponential on a set of tests"
@@ -127,17 +130,70 @@ int exec_expm_test(int argc, char* argv[]) {
  * @return int
  */
 int exec_expm_test_coo(int argc, char* argv[]) {
-    if (argc != 1) {
-        std::cout << "Usage: expm-test matrix-filepath" << std::endl;
+    if (argc < 6 || argc > 8) {
+        std::cout << "Usage: expm-test-coo matrix-filepath exp-matrix-filepath M N seed [row [col]]"
+                  << std::endl;
         return 1;
     }
 
     std::string filepath(argv[0]);
+    std::string solution_path(argv[1]);
+    int M = atoi(argv[2]);
+    int N = atoi(argv[3]);
+    int seed = atoi(argv[4]);
+    int row = argc >= 5 ? atoi(argv[5]) : 0;
+    int col = argc >= 6 ? atoi(argv[6]) : 0;
+
+    CSRMatrix<float> matrix = CSRMatrix<float>::from_coo(filepath);
+    CSRMatrix<float> exp_matrix = CSRMatrix<float>::from_coo(solution_path);
+
+    std::vector<float> v(matrix.columns(), 0);
+    v[col] = 1;
+
+    MCME mcme(matrix, v, 1, row, M, N, seed);
+    float res = mcme.calculate();
+    float sol = exp_matrix.at(row, col);
+    float error = std::abs(res - sol) / std::abs(sol);
+
+    std::cout << std::fixed                                  // Precision
+              << std::setprecision(2) << error * 100 << "%"  // Error
+              << std::setprecision(3) << " (" << res << ")"  // Result
+              << std::endl;
+    return 0;
+}
+
+/**
+ * @brief Calculates average accuracy of matrix exponential for a
+ *
+ * @param argc must be 1
+ * @param argv (test directory path, M, N, seed)
+ * @return int
+ */
+int exec_expm_time_coo(int argc, char* argv[]) {
+    if (argc < 5 || argc > 7) {
+        std::cout << "Usage: expm-time-coo matrix-filepath M N seed [row [col]]" << std::endl;
+        return 1;
+    }
+
+    std::string filepath(argv[0]);
+    int M = atoi(argv[1]);
+    int N = atoi(argv[2]);
+    int seed = atoi(argv[3]);
+    int row = argc >= 4 ? atoi(argv[4]) : 0;
+    int col = argc >= 5 ? atoi(argv[5]) : 0;
 
     CSRMatrix<float> matrix = CSRMatrix<float>::from_coo(filepath);
 
-    matrix.print_csr();
-    matrix.print();
+    std::vector<float> v(matrix.columns(), 0);
+    v[col] = 1;
+
+    MCME mcme(matrix, v, 1, row, M, N, seed);
+
+    double time = -omp_get_wtime();
+    std::cout << std::fixed << std::setprecision(5)  // Adjust width & precision
+              << mcme.calculate() << std::endl;
+    time += omp_get_wtime();
+    std::cout << "Executed in " << time << " seconds." << std::endl;
 
     return 0;
 }
@@ -158,6 +214,8 @@ int main(int argc, char* argv[]) {
         return exec_expm_test(argc - 2, &argv[2]);
     } else if (command == "expm-test-coo") {
         return exec_expm_test_coo(argc - 2, &argv[2]);
+    } else if (command == "expm-time-coo") {
+        return exec_expm_time_coo(argc - 2, &argv[2]);
     } else {
         exec_help();
         return 1;
