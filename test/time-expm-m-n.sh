@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Output file, append by default
-OUTPUT_FILE="time-expm-m-n.csv"
+OUTPUT_FILE="test/res/time-expm-m-n.csv"
 if [[ $1 == "-t" ]]
 then
     > "$OUTPUT_FILE"  # Truncate file

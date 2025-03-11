@@ -1,8 +1,14 @@
 #!/bin/bash
 
-# Output file, truncated at start
-OUTPUT_FILE="results.txt"
-> "$OUTPUT_FILE"
+# Output file, append by default
+OUTPUT_FILE="test/res/time-expm-threads.csv"
+if [[ $1 == "-t" ]]
+then
+    > "$OUTPUT_FILE"  # Truncate file
+    echo "M N RESULT ERROR" >> "$OUTPUT_FILE"
+else
+    echo "" >> "$OUTPUT_FILE"
+fi
 
 # Fixed values
 M=16777216

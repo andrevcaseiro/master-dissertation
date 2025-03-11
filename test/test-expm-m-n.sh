@@ -1,20 +1,26 @@
 #!/bin/bash
 
-# Output file, truncated at start
-OUTPUT_FILE="test-expm-m-n.csv"
-> "$OUTPUT_FILE"
+# Output file, append by default
+OUTPUT_FILE="test/res/test-expm-m-n.csv"
+if [[ $1 == "-t" ]]
+then
+    > "$OUTPUT_FILE"  # Truncate file
+    echo "M,N,ERROR" >> "$OUTPUT_FILE"
+else
+    echo "" >> "$OUTPUT_FILE"
+fi
 
 # Fixed values
 SEED=-1
-ROW=1
+ROW=0
 COL=1
 
 # Ranges
-BASE_M=1028
-EXP_MAX_M=2
+BASE_M=16448
+EXP_MAX_M=0
 
-BASE_N=8
-EXP_MAX_N=4
+BASE_N=16
+EXP_MAX_N=10
 
 # Repeat (M, N) this number of times
 REPETITIONS=10
@@ -30,12 +36,11 @@ do
 
         for ((k=0; k<=REPETITIONS; k++))
         do
-            OUTPUT=$(./main expm-time-coo ./test/large/laplacian_3d_262144.csv "$M" "$N" "$SEED" "$ROW" "$COL")
-            RESULT=$(echo "$OUTPUT" | sed -n '1p')
-            TIME=$(echo "$OUTPUT" | sed -n '2p' | awk '{print $3}')  # Extract execution time
+            OUTPUT=$(./main expm-test-coo ./test/laplacians/laplacian_3d_32768.csv ./test/laplacians/laplacian_3d_32768_exp.csv "$M" "$N" "$SEED" "$ROW" "$COL")
+            ERROR=$(echo "$OUTPUT" | awk '{print $1}' | tr -d '%')
             
-            echo "$M $N $RESULT $AVG_TIME"
-            echo "$M $N $RESULT $AVG_TIME" >> "$OUTPUT_FILE"
+            echo "$M,$N,$ERROR"
+            echo "$M,$N,$ERROR" >> "$OUTPUT_FILE"
         done
     done
 done
