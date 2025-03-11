@@ -7,3 +7,4 @@ main
 # Project
 .vscode
 local
+test/res
