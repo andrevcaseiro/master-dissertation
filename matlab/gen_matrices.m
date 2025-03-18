@@ -17,7 +17,7 @@ for num_dims = 2:2
         % Generate filenames
         laplacian_filename = sprintf('laplacian_%dd_%d.csv', num_dims, final_dim);
         exp_filename = sprintf('laplacian_%dd_%d_exp.csv', num_dims, final_dim);
-    
+
         % Save matrices
         export_sparse_mat(A, laplacian_filename);
         export_sparse_mat(first_row_exp, exp_filename);

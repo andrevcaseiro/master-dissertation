@@ -16,11 +16,11 @@ ROW=0
 COL=1
 
 # Ranges
-BASE_M=263168
-EXP_MAX_M=0
+BASE_M=1024
+EXP_MAX_M=10
 
-BASE_N=16
-EXP_MAX_N=10
+BASE_N=4096
+EXP_MAX_N=0
 
 # Repeat (M, N) this number of times
 REPETITIONS=10

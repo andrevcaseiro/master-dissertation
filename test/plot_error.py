@@ -6,7 +6,7 @@ from scipy.optimize import curve_fit
 # Load the CSV file
 df_full = pd.read_csv("res/test-expm-m-n.csv")
 
-df = df_full[df_full["N"] == 128]
+df = df_full[df_full["N"] == 4096]
 
 # Compute the average error for each (M, N) pair
 df_grouped = df.groupby(["M", "N"]).mean().reset_index()
