@@ -39,4 +39,12 @@ class MCME {
      * @return float
      */
     float calculate();
+
+    /**
+     * @brief Calculate x for x' = Ax + b
+     * 
+     * @param b 
+     * @return float 
+     */
+    float calculate_b(std::vector<float> b);
 };

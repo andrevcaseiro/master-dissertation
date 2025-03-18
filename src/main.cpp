@@ -2,12 +2,54 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <vector>
 
 #include "matrix/csrd_matrix.h"
 #include "mcme.h"
+
+std::vector<float> read_vector(std::string filepath) {
+    std::vector<float> v;
+    std::ifstream file(filepath);
+
+    if (!file.is_open()) {
+        throw std::runtime_error("Could not open the file.");
+    }
+
+    std::string line;
+
+    // Read the length
+    if (!std::getline(file, line)) {
+        throw std::runtime_error("File is empty.");
+    }
+    int expected_length = 0;
+    std::istringstream(line) >> expected_length;
+    v.reserve(expected_length);
+
+    // Read the second line for the comma-separated values
+    if (!std::getline(file, line)) {
+        throw std::runtime_error("Vector data missing.");
+    }
+
+    std::istringstream ss(line);
+    std::string value;
+    while (std::getline(ss, value, ',')) {
+        try {
+            v.push_back(std::stof(value));  // Convert string to float and add to vector
+        } catch (const std::invalid_argument& e) {
+            throw std::runtime_error("Invalid float value in the CSV file.");
+        }
+    }
+
+    // Check if the number of elements matches the expected length
+    if (v.size() != (size_t) expected_length) {
+        throw std::runtime_error("Vector data does not match the expected length.");
+    }
+
+    return v;
+}
 
 /* Prints usage message to cout
  * Returns 0 */
@@ -170,7 +212,7 @@ int exec_expm_test_coo(int argc, char* argv[]) {
  * @return int
  */
 int exec_expm_time_coo(int argc, char* argv[]) {
-    if (argc < 5 || argc > 7) {
+    if (argc < 4 || argc > 6) {
         std::cout << "Usage: expm-time-coo matrix-filepath M N seed [row [col]]" << std::endl;
         return 1;
     }
@@ -198,6 +240,34 @@ int exec_expm_time_coo(int argc, char* argv[]) {
     return 0;
 }
 
+int exec_expm_b_test(int argc, char* argv[]) {
+    if (argc < 6 || argc > 7) {
+        std::cout << "Usage: expm-b-test matrix-filepath x-0-filepath b-filepath M N t seed [row]"
+                  << std::endl;
+        return 1;
+    }
+
+    std::string filepath(argv[0]);
+    std::string x_0_filepath(argv[1]);
+    std::string b_filepath(argv[2]);
+    int M = atoi(argv[3]);
+    int N = atoi(argv[4]);
+    int seed = atoi(argv[5]);
+    int row = argc > 6 ? atoi(argv[6]) : 0;
+
+    CSRMatrix<float> matrix = CSRMatrix<float>::from_coo(filepath);
+
+    std::vector<float> x_0 = read_vector(x_0_filepath);
+    std::vector<float> b = read_vector(b_filepath);
+
+    MCME mcme(matrix, x_0, 1, row, M, N, seed);
+
+    std::cout << std::fixed << std::setprecision(5)  // Adjust width & precision
+              << mcme.calculate_b(b) << std::endl;
+
+    return 0;
+}
+
 int main(int argc, char* argv[]) {
     if (argc < 2) {
         exec_help();
@@ -216,6 +286,8 @@ int main(int argc, char* argv[]) {
         return exec_expm_test_coo(argc - 2, &argv[2]);
     } else if (command == "expm-time-coo") {
         return exec_expm_time_coo(argc - 2, &argv[2]);
+    } else if (command == "expm-b-test") {
+        return exec_expm_b_test(argc - 2, &argv[2]);
     } else {
         exec_help();
         return 1;

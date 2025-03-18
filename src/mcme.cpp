@@ -85,3 +85,63 @@ float MCME::calculate() {
 
     return res;
 }
+
+int w(int n, int size) {
+    if (n == 0 || n == size) return 1;
+    if (n % 2 == 0)
+        return 4;
+    else
+        return 2;
+}
+
+float MCME::calculate_b(std::vector<float> b) {
+    float delta_t = _t / _N;
+
+    // Calculate D and L so that A = D - L and the sum of every row is 0
+    std::vector<float> D(_matrix.rows());
+
+    if (_N % 2 == 0) throw std::runtime_error("N must be an odd number");
+
+    float res = 0;
+#pragma omp parallel reduction(+ : res)
+    {
+#pragma omp for
+        for (int row = 0; row < _matrix.rows(); ++row) {
+            float sum = 0;
+            for (auto it : _matrix.row(row)) {
+                sum += it.value();
+            }
+
+            _matrix.diagonal(row) -= sum;
+            D[row] = sum;
+        }
+
+#pragma omp for
+        for (int m = 0; m < _M; m++) {
+            /* Starting a generator on each line ensures reproduceability with different numbers of
+             * threads */
+            std::mt19937 gen(_seed + m);
+
+            int state = _i;
+
+            float sample = 1;
+            float integral = b[state];
+            for (int n = 1; n <= _N; n++) {
+                sample *= exp(D[state] * delta_t / 2);
+
+                float tau = generate_time(gen, state);
+                while (tau < delta_t) {
+                    tau += generate_time(gen, state);
+                    state = generate_state(gen, state);
+                }
+
+                sample *= exp(D[state] * delta_t / 2);
+                integral += w(n, _N) * sample * b[state];
+            }
+
+            res += (sample * _x_0[state] + integral * delta_t / 3) / _M;
+        }
+    }
+
+    return res;
+}
