@@ -26,7 +26,7 @@ CSRMatrix<T>::CSRMatrix(const std::string& filepath) {
 
     _row_pointers.push_back(0);
 
-    for (int row = 0; row < _rows; row++) {
+    for (size_t row = 0; row < _rows; row++) {
         getline(file, line);
 
         std::stringstream line_stream(line);
@@ -36,7 +36,7 @@ CSRMatrix<T>::CSRMatrix(const std::string& filepath) {
         _column_indexes.push_back(row);
         _values.push_back(0);
 
-        for (int col = 0; col < _columns; col++) {
+        for (size_t col = 0; col < _columns; col++) {
             getline(line_stream, cell, ',');
 
             std::stringstream cell_stream(cell);
@@ -75,30 +75,30 @@ CSRMatrix<T> CSRMatrix<T>::from_coo(const std::string& filepath) {
     std::stringstream ss(line);
     std::string token;
 
-    int nnz;
+    size_t nnz;
     try {
         std::getline(ss, token, ',');
-        m._rows = stoi(token);
+        m._rows = stol(token);
 
         std::getline(ss, token, ',');
-        m._columns = stoi(token);
+        m._columns = stol(token);
 
         std::getline(ss, token, ',');
-        nnz = std::stoi(token);
+        nnz = std::stol(token);
     } catch (const std::exception& e) {
         throw std::runtime_error("Error: Failed to read matrix size");
     }
 
-    std::vector<std::list<std::pair<int, T>>> data(m._rows, std::list<std::pair<int, T>>());
+    std::vector<std::list<std::pair<size_t, T>>> data(m._rows, std::list<std::pair<size_t, T>>());
 
     std::vector<T> diagonal(m._rows, 0);
 
-    for (int i = 0; i < nnz; ++i) {
+    for (size_t i = 0; i < nnz; ++i) {
         getline(file, line);
 
         std::stringstream ss(line);
 
-        int row, col;
+        size_t row, col;
         T value;
 
         try {
@@ -125,7 +125,7 @@ CSRMatrix<T> CSRMatrix<T>::from_coo(const std::string& filepath) {
         data[row].emplace_back(col, value);
     }
 
-    for (int row = 0; row < m._rows; ++row) {
+    for (size_t row = 0; row < m._rows; ++row) {
         data[row].sort();
     }
 
@@ -134,10 +134,10 @@ CSRMatrix<T> CSRMatrix<T>::from_coo(const std::string& filepath) {
     m._values.reserve(nnz);
 
     m._row_pointers.emplace_back(0);
-    for (int row = 0; row < m._rows; ++row) {
+    for (size_t row = 0; row < m._rows; ++row) {
         m._column_indexes.emplace_back(row);
         m._values.emplace_back(diagonal[row]);
-        for (auto entry: data[row]) {
+        for (auto entry : data[row]) {
             m._column_indexes.emplace_back(entry.first);
             m._values.emplace_back(entry.second);
         }
@@ -148,7 +148,7 @@ CSRMatrix<T> CSRMatrix<T>::from_coo(const std::string& filepath) {
 }
 
 template <typename T>
-T& CSRMatrix<T>::at(int row, int column) {
+T& CSRMatrix<T>::at(size_t row, size_t column) {
     if (row == column) {
         return diagonal(row);
     }
@@ -167,19 +167,19 @@ T& CSRMatrix<T>::at(int row, int column) {
 }
 
 template <typename T>
-T& CSRMatrix<T>::diagonal(int i) {
+T& CSRMatrix<T>::diagonal(size_t i) {
     return _values[_row_pointers[i]];
 }
 
 template <typename T>
-CSRRow<T> CSRMatrix<T>::row(int row) {
+CSRRow<T> CSRMatrix<T>::row(size_t row) {
     return CSRRow<T>(*this, row);
 }
 
 template <typename T>
 void CSRMatrix<T>::print() {
-    for (int row = 0; row < rows(); row++) {
-        for (int col = 0; col < columns(); col++) {
+    for (size_t row = 0; row < rows(); row++) {
+        for (size_t col = 0; col < columns(); col++) {
             try {
                 std::cout << at(row, col);
             } catch (const std::domain_error& e) {

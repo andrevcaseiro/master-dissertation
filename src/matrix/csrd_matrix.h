@@ -19,14 +19,14 @@ template <typename T>
  */
 class CSRMatrix {
    private:
-    int _rows, _columns;
-    std::vector<int> _row_pointers;
-    std::vector<int> _column_indexes;
+    size_t _rows, _columns;
+    std::vector<size_t> _row_pointers;
+    std::vector<size_t> _column_indexes;
     std::vector<T> _values;
 
+   public:
     CSRMatrix();
 
-   public:
     /**
      * @brief Construct a new CSRMatrix object
      *
@@ -38,17 +38,17 @@ class CSRMatrix {
 
     /**
      * @brief Constructs a new CSRMatrix from a file describing the matrix in coordinate format
-     * 
+     *
      * The first line of the file should contain:
-     * 
+     *
      * - rows, columns, nnz
-     * 
+     *
      * Followed by nnz lines containing:
-     * 
+     *
      * - row, column, value
-     * 
-     * @param filepath 
-     * @return CSRMatrix<T> 
+     *
+     * @param filepath
+     * @return CSRMatrix<T>
      */
     static CSRMatrix<T> from_coo(const std::string& filepath);
 
@@ -57,14 +57,14 @@ class CSRMatrix {
      *
      * @return int number of rows
      */
-    int rows() { return _rows; }
+    size_t rows() { return _rows; }
 
     /**
      * @brief Number of columns
      *
      * @return int number of columns
      */
-    int columns() { return _columns; }
+    size_t columns() { return _columns; }
 
     /**
      * @brief Returns a reference to the value at position (row, column)
@@ -73,7 +73,7 @@ class CSRMatrix {
      * @param column column index
      * @return T& reference to the value at (row, column)
      */
-    T& at(int row, int column);
+    T& at(size_t row, size_t column);
 
     /**
      * @brief Returns the ith diagonal element
@@ -81,7 +81,7 @@ class CSRMatrix {
      * @param i index
      * @return T the ith diagonal element
      */
-    T& diagonal(int i);
+    T& diagonal(size_t i);
 
     /**
      * @brief Iterator through row entries
@@ -89,7 +89,7 @@ class CSRMatrix {
      * @param row index
      * @return std::pair<std::vector<Entry<T>>::iterator, std::vector<Entry<T>>::iterator> Iterator
      */
-    CSRRow<T> row(int row);
+    CSRRow<T> row(size_t row);
 
     /**
      * @brief Prints the matrix to cout
@@ -109,12 +109,12 @@ class CSRMatrix {
 template <typename T>
 class CSRRow {
     CSRMatrix<T>& _matrix;
-    int _row;
+    size_t _row;
 
    public:
-    CSRRow(CSRMatrix<T>& matrix, int row) : _matrix(matrix), _row(row) {}
+    CSRRow(CSRMatrix<T>& matrix, size_t row) : _matrix(matrix), _row(row) {}
 
-    int row() const { return row; }
+    size_t row() const { return row; }
 
     CSRRowIterator<T> begin() const { return {_matrix, _row, _matrix._row_pointers[_row]}; }
 
@@ -138,18 +138,18 @@ template <typename T>
 class CSRRowIterator {
    private:
     CSRMatrix<T>& _matrix;
-    int _row;
-    int _index;
+    size_t _row;
+    size_t _index;
 
    public:
-    CSRRowIterator(CSRMatrix<T>& matrix, int row, int index)
+    CSRRowIterator(CSRMatrix<T>& matrix, size_t row, size_t index)
         : _matrix(matrix), _row(row), _index(index) {}
 
-    int row() const { return _row; }
+    size_t row() const { return _row; }
 
-    int column() const { return this->_matrix._column_indexes[_index]; }
+    size_t column() const { return this->_matrix._column_indexes[_index]; }
 
-    int value() const { return this->_matrix._values[_index]; }
+    size_t value() const { return this->_matrix._values[_index]; }
 
     CSREntry<T> operator*() const { return CSREntry<T>(_matrix, _row, _index); }
 
@@ -165,14 +165,14 @@ template <typename T>
 class CSREntry {
    private:
     CSRMatrix<T>& _matrix;
-    int _row;
-    int _index;
+    size_t _row;
+    size_t _index;
 
    public:
-    CSREntry(CSRMatrix<T>& matrix, int row, int index)
+    CSREntry(CSRMatrix<T>& matrix, size_t row, size_t index)
         : _matrix(matrix), _row(row), _index(index) {}
 
-    int row() const { return _row; }
-    int column() const { return this->_matrix._column_indexes[_index]; }
+    size_t row() const { return _row; }
+    size_t column() const { return this->_matrix._column_indexes[_index]; }
     T& value() const { return this->_matrix._values[_index]; }
 };
