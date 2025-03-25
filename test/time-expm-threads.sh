@@ -5,7 +5,7 @@ OUTPUT_FILE="test/res/time-expm-threads.csv"
 if [[ $1 == "-t" ]]
 then
     > "$OUTPUT_FILE"  # Truncate file
-    echo "M N RESULT ERROR" >> "$OUTPUT_FILE"
+    echo "THREADS,M,N,SEED,ROW,COL,RESULT,TIME" >> "$OUTPUT_FILE"
 else
     echo "" >> "$OUTPUT_FILE"
 fi
@@ -16,9 +16,6 @@ N=4096
 SEED=1234
 ROW=1
 COL=1
-
-# Header
-echo "THREADS,M,N,SEED,ROW,COL,RESULT,TIME" >> "$OUTPUT_FILE"
 
 # Start threads, doubled each iteration until the max
 THREADS=1
