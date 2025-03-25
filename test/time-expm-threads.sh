@@ -11,8 +11,8 @@ else
 fi
 
 # Fixed values
-M=16777216
-N=512
+M=1048576
+N=4096
 SEED=1234
 ROW=1
 COL=1
@@ -29,9 +29,11 @@ do
     export OMP_NUM_THREADS=$THREADS
 
     # Execute test and parse output
-    OUTPUT=$(./main expm-time-coo ./test/large/laplacian_3d_262144.csv "$M" "$N" "$SEED" "$ROW" "$COL")
-    RESULT=$(echo "$OUTPUT" | sed -n '1p')
-    TIME=$(echo "$OUTPUT" | sed -n '2p' | awk '{print $3}')  # Extract execution time
+    # Execute test and parse output
+    OUTPUT=$(./main exp ./test/large/laplacian_3d_262144.csv \
+        "$M" "$N" "$ROW" "$COL" "$SEED")
+    RESULT=$(echo "$OUTPUT" | awk '/Result:/ {print $2}')
+    TIME=$(echo "$OUTPUT" | awk '/Time:/ {print $2}')
 
     # Output to terminal and file
     echo "$THREADS,$M,$N,$SEED,$ROW,$COL,$RESULT,$TIME"

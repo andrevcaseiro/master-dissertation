@@ -16,31 +16,42 @@ ROW=0
 COL=1
 
 # Ranges
-BASE_M=1024
-EXP_MAX_M=10
+BASE_M=65536
+EXP_MAX_M=8
 
-BASE_N=4096
-EXP_MAX_N=0
+BASE_N=256
+EXP_MAX_N=8
 
 # Repeat (M, N) this number of times
 REPETITIONS=10
 
-# Loop over exponentially growing values of M and N
+# Run REPETITIONS time and write results
+run_experiment() {
+    local M=$1
+    local N=$2
+    for ((k=0; k<REPETITIONS; k++)); do
+        OUTPUT=$(./main exp ./test/laplacians/laplacian_3d_32768.csv \
+            -r ./test/laplacians/laplacian_3d_32768_exp.csv \
+            "$M" "$N" "$ROW" "$COL" "$SEED")
+        ERROR=$(echo "$OUTPUT" | awk '/Error:/ {print $2}')
+        
+        echo "$M,$N,$ERROR"
+        echo "$M,$N,$ERROR" >> "$OUTPUT_FILE"
+    done
+}
+
+# Loop over exponentially growing values of M
+N=4096
 for ((i=0; i<=EXP_MAX_M; i++))
 do
     M=$(( BASE_M * 2**i ))
-    
-    for ((j=0; j<=EXP_MAX_N; j++))
-    do
-        N=$(( BASE_N * 2**j ))
+    run_experiment "$M" "$N"
+done
 
-        for ((k=0; k<=REPETITIONS; k++))
-        do
-            OUTPUT=$(./main expm-test-coo ./test/laplacians/laplacian_3d_32768.csv ./test/laplacians/laplacian_3d_32768_exp.csv "$M" "$N" "$SEED" "$ROW" "$COL")
-            ERROR=$(echo "$OUTPUT" | awk '{print $1}' | tr -d '%')
-            
-            echo "$M,$N,$ERROR"
-            echo "$M,$N,$ERROR" >> "$OUTPUT_FILE"
-        done
-    done
+# Loop over exponentially growing values of N
+M=1048576
+for ((i=0; i<=EXP_MAX_N; i++))
+do
+    N=$(( BASE_N * 2**i ))
+    run_experiment "$M" "$N"
 done

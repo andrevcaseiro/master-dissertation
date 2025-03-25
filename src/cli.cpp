@@ -63,15 +63,16 @@ struct ExpM {
         float res = solver.solve();
         time += omp_get_wtime();
 
-        std::cout << std::setw(11) << std::left << "Result:" << std::setw(10) << std::right
-                  << std::fixed << std::setprecision(5) << res  // Result
-                  << std::endl;
+        std::cout << std::setw(8) << std::left << "Result:" << std::setw(10) << std::right
+                  << std::fixed << std::setprecision(5) << res << std::endl;
+        std::cout << std::setw(8) << std::left << "Time:" << std::setw(10) << std::right
+                  << std::fixed << std::setprecision(3) << time << " s" << std::endl;
 
         if (!res_filename.empty()) {
             float error = std::abs(res - expected_res) / std::abs(expected_res);
 
-            std::cout << std::setw(11) << std::left << "Error (%):" << std::setw(10) << std::right
-                      << std::fixed << std::setprecision(3) << error * 100 << std::endl;
+            std::cout << std::setw(8) << std::left << "Error:" << std::setw(10) << std::right
+                      << std::fixed << std::setprecision(3) << error * 100 << " %" << std::endl;
         }
     }
 };
@@ -136,15 +137,16 @@ struct Solve {
         float res = solver.solve();
         time += omp_get_wtime();
 
-        std::cout << std::setw(11) << std::left << "Result:" << std::setw(10) << std::right
-                  << std::fixed << std::setprecision(5) << res  // Result
-                  << std::endl;
+        std::cout << std::setw(8) << std::left << "Result:" << std::setw(10) << std::right
+                  << std::fixed << std::setprecision(5) << res << std::endl;
+        std::cout << std::setw(8) << std::left << "Time:" << std::setw(10) << std::right
+                  << std::fixed << std::setprecision(3) << time << " s" << std::endl;
 
         if (!res_filename.empty()) {
             float error = std::abs(res - expected_res) / std::abs(expected_res);
 
-            std::cout << std::setw(11) << std::left << "Error (%):" << std::setw(10) << std::right
-                      << std::fixed << std::setprecision(3) << error * 100 << std::endl;
+            std::cout << std::setw(8) << std::left << "Error:" << std::setw(10) << std::right
+                      << std::fixed << std::setprecision(3) << error * 100 << " %" << std::endl;
         }
     }
 };
@@ -201,7 +203,7 @@ struct SolveSequence {
 
         std::vector<float> res = solver.solve_sequence();
 
-        std::cout << std::fixed << std::setprecision(5);  // Adjust width & precision
+        std::cout << std::setw(10) << std::fixed << std::setprecision(5);
         for (size_t i = 0; i < res.size(); i++) {
             std::cout << res[i] << std::endl;
         }
