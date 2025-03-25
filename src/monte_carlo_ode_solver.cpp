@@ -1,6 +1,6 @@
 /**
  * @file MonteCarloODESolver.cpp
- * @author André Caseiro (andre.v.caseiro@tecnico.ulisboa.pt)
+ * @author Andre Caseiro (andre.v.caseiro@tecnico.ulisboa.pt)
  * @brief Monte Carlo Ordinary Diferential Equation solver
  * @version 0.1
  * @date 2025-03-18

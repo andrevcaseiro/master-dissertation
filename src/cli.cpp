@@ -1,3 +1,14 @@
+/**
+ * @file cli.cpp
+ * @author Andre Caseiro (andre.v.caseiro@tecnico.ulisboa.pt)
+ * @brief CLI interface for the Monte Carlo ODE solver
+ * @version 0.1
+ * @date 2025-03-24
+ *
+ * @copyright Copyright (c) 2025
+ *
+ */
+
 #include <omp.h>
 
 #include <CLI11.hpp>
@@ -6,6 +17,9 @@
 #include "monte_carlo_ode_solver.h"
 #include "read_vector.h"
 
+/**
+ * @brief A struct defining the matrix exponential command
+ */
 struct ExpM {
     std::string A_filename;
     std::string res_filename;
@@ -25,7 +39,7 @@ struct ExpM {
         cmd->add_option("N", N, "Splitting parameter")->required();
         cmd->add_option("row", row, "Solution row")->capture_default_str();
         cmd->add_option("col", col, "Solution column")->capture_default_str();
-        cmd->add_option("seed", seed, "Seed")->capture_default_str();
+        cmd->add_option("seed", seed, "Seed (-1 for random)")->capture_default_str();
 
         cmd->callback([this]() { execute(); });
     }
@@ -43,25 +57,28 @@ struct ExpM {
         std::vector<float> b(A.rows(), 0);
         float t = 1;
 
-        MonteCarloODESolver solver(A, x_0, b, t, row, M, N, seed);
+        MonteCarloODESolver solver(A, b, x_0, t, row, M, N, seed);
 
         double time = -omp_get_wtime();
         float res = solver.solve();
         time += omp_get_wtime();
 
+        std::cout << std::setw(11) << std::left << "Result:" << std::setw(10) << std::right
+                  << std::fixed << std::setprecision(5) << res  // Result
+                  << std::endl;
+
         if (!res_filename.empty()) {
             float error = std::abs(res - expected_res) / std::abs(expected_res);
 
-            std::cout << std::fixed << std::setprecision(5) << res    // Result
-                      << ", " << std::setprecision(3) << error * 100  // Error
-                      << std::endl;
-        } else {
-            std::cout << std::fixed << std::setprecision(5) << res  // Result
-                      << std::endl;
+            std::cout << std::setw(11) << std::left << "Error (%):" << std::setw(10) << std::right
+                      << std::fixed << std::setprecision(3) << error * 100 << std::endl;
         }
     }
 };
 
+/**
+ * @brief A struct defining the general case ODE solver command
+ */
 struct Solve {
     std::string A_filename;
     std::string b_filename;
@@ -86,7 +103,7 @@ struct Solve {
         cmd->add_option("N", N, "Splitting parameter")->required();
         cmd->add_option("row", row, "Solution row")->capture_default_str();
         cmd->add_option("t", t, "Solution time")->capture_default_str();
-        cmd->add_option("seed", seed, "Seed")->capture_default_str();
+        cmd->add_option("seed", seed, "Seed (-1 for random)")->capture_default_str();
 
         cmd->callback([this]() { execute(); });
     }
@@ -119,19 +136,22 @@ struct Solve {
         float res = solver.solve();
         time += omp_get_wtime();
 
+        std::cout << std::setw(11) << std::left << "Result:" << std::setw(10) << std::right
+                  << std::fixed << std::setprecision(5) << res  // Result
+                  << std::endl;
+
         if (!res_filename.empty()) {
             float error = std::abs(res - expected_res) / std::abs(expected_res);
 
-            std::cout << std::fixed << std::setprecision(5) << res    // Result
-                      << ", " << std::setprecision(3) << error * 100  // Error
-                      << std::endl;
-        } else {
-            std::cout << std::fixed << std::setprecision(5) << res  // Result
-                      << std::endl;
+            std::cout << std::setw(11) << std::left << "Error (%):" << std::setw(10) << std::right
+                      << std::fixed << std::setprecision(3) << error * 100 << std::endl;
         }
     }
 };
 
+/**
+ * @brief A struct defining the command to solve an ODE with intermidiary results
+ */
 struct SolveSequence {
     std::string A_filename;
     std::string b_filename;
@@ -155,7 +175,7 @@ struct SolveSequence {
         cmd->add_option("N", N, "Splitting parameter")->required();
         cmd->add_option("row", row, "Solution row")->capture_default_str();
         cmd->add_option("t", t, "Solution time")->capture_default_str();
-        cmd->add_option("seed", seed, "Seed")->capture_default_str();
+        cmd->add_option("seed", seed, "Seed (-1 for random)")->capture_default_str();
 
         cmd->callback([this]() { execute(); });
     }
@@ -188,12 +208,19 @@ struct SolveSequence {
     }
 };
 
+/**
+ * @brief Entry point, defines parses CLI arguments and executes command
+ *
+ * @param argc number of arguments
+ * @param argv list of arguments
+ * @return int exit status
+ */
 int main(int argc, char** argv) {
     CLI::App app{"A cli tool to solve systems of DAEs."};
 
     Solve solveCmd{app};
-    SolveSequence solveSequence{app};
-    ExpM expm{app};
+    SolveSequence solveSequenceCmd{app};
+    ExpM expmCmd{app};
 
     CLI11_PARSE(app, argc, argv);
     return 0;

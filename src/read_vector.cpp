@@ -1,3 +1,14 @@
+/**
+ * @file read_vector.cpp
+ * @author Andre Caseiro (andre.v.caseiro@tecnico.ulisboa.pt)
+ * @brief Read vector from file
+ * @version 0.1
+ * @date 2025-03-24
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
+
 #include "read_vector.h"
 
 #include <fstream>
