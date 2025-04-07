@@ -1,0 +1,80 @@
+#pragma once
+
+#include <cmath>
+#include <iostream>
+#include <memory>
+
+class ConstantFunction;
+class PulseFunction;
+
+/**
+ * @brief Abstract base class representing a time-dependent function
+ *
+ */
+class TimeFunction {
+   public:
+    virtual ~TimeFunction() = default;
+    virtual float operator()(float t) const = 0;
+
+    // Operator overloads
+    virtual std::unique_ptr<TimeFunction> operator+(const TimeFunction& other) const = 0;
+    virtual TimeFunction& operator+=(float v) = 0;
+    virtual TimeFunction& operator*=(float v) = 0;
+
+    virtual std::unique_ptr<TimeFunction> clone() const = 0;
+
+    virtual std::unique_ptr<TimeFunction> addTo(const ConstantFunction& constant) const = 0;
+    virtual std::unique_ptr<TimeFunction> addTo(const PulseFunction& pulse) const = 0;
+
+    virtual std::string to_string() const = 0;
+};
+
+/**
+ * @brief Constant function
+ *
+ */
+class ConstantFunction : public TimeFunction {
+   private:
+    float value;
+
+   public:
+    ConstantFunction(float v) : value(v) {}
+
+    float operator()(float /*t*/) const override { return value; }
+
+    std::unique_ptr<TimeFunction> clone() const override;
+
+    std::unique_ptr<TimeFunction> operator+(const TimeFunction& other) const override;
+    std::unique_ptr<TimeFunction> addTo(const ConstantFunction& constant) const override;
+    std::unique_ptr<TimeFunction> addTo(const PulseFunction& pulse) const override;
+
+    TimeFunction& operator+=(float v) override;
+    TimeFunction& operator*=(float v) override;
+
+    std::string to_string() const override;
+};
+
+/**
+ * @brief Pulse function
+ *
+ */
+class PulseFunction : public TimeFunction {
+   public:
+    float v1, v2, td, tr, tf, pw, per;
+
+    PulseFunction(float v1, float v2, float td, float tr, float tf, float pw, float per)
+        : v1(v1), v2(v2), td(td), tr(tr), tf(tf), pw(pw), per(per) {}
+
+    float operator()(float t) const override;
+
+    std::unique_ptr<TimeFunction> clone() const override;
+
+    std::unique_ptr<TimeFunction> operator+(const TimeFunction& other) const override;
+    std::unique_ptr<TimeFunction> addTo(const ConstantFunction& constant) const override;
+    std::unique_ptr<TimeFunction> addTo(const PulseFunction& pulse) const override;
+
+    TimeFunction& operator+=(float v) override;
+    TimeFunction& operator*=(float v) override;
+
+    std::string to_string() const override;
+};

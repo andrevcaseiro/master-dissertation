@@ -1,6 +1,7 @@
 #include "csrd_matrix.h"
 
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <list>
 #include <sstream>
@@ -148,6 +149,49 @@ CSRMatrix<T> CSRMatrix<T>::from_coo(const std::string& filepath) {
 }
 
 template <typename T>
+CSRMatrix<T> CSRMatrix<T>::from_coo(COOMatrix<T>& coo_matrix) {
+    CSRMatrix<T> m;
+
+    m._rows = coo_matrix.rows();
+    m._columns = coo_matrix.cols();
+
+    std::vector<std::list<std::pair<size_t, T>>> data(coo_matrix.rows(),
+                                                      std::list<std::pair<size_t, T>>());
+    std::vector<T> diagonal(coo_matrix.rows(), 0);
+
+    size_t nnz = coo_matrix.nnz();
+    for (auto it : coo_matrix) {
+        if (it.row == it.col) {
+            diagonal[it.row] = it.value;
+            continue;
+        }
+
+        data[it.row].emplace_back(it.col, it.value);
+    }
+
+    for (size_t row = 0; row < m._rows; ++row) {
+        data[row].sort();
+    }
+
+    m._row_pointers.reserve(m._rows + 1);
+    m._column_indexes.reserve(nnz);
+    m._values.reserve(nnz);
+
+    m._row_pointers.emplace_back(0);
+    for (size_t row = 0; row < m._rows; ++row) {
+        m._column_indexes.emplace_back(row);
+        m._values.emplace_back(diagonal[row]);
+        for (auto entry : data[row]) {
+            m._column_indexes.emplace_back(entry.first);
+            m._values.emplace_back(entry.second);
+        }
+        m._row_pointers.emplace_back(m._values.size());
+    }
+
+    return m;
+}
+
+template <typename T>
 T& CSRMatrix<T>::at(size_t row, size_t column) {
     if (row == column) {
         return diagonal(row);
@@ -158,7 +202,7 @@ T& CSRMatrix<T>::at(size_t row, size_t column) {
 
     auto res = std::lower_bound(row_begin, row_end, column);
 
-    if (*res != column) {
+    if (res == row_end || *res != column) {
         throw std::domain_error("Attempted to access a null entry of a sparse matrix at " +
                                 std::to_string(row) + "," + std::to_string(column) + ".");
     }
@@ -177,13 +221,14 @@ CSRRow<T> CSRMatrix<T>::row(size_t row) {
 }
 
 template <typename T>
-void CSRMatrix<T>::print() {
+void CSRMatrix<T>::print(int prec) {
+    std::cout << std::fixed << std::setprecision(prec);
     for (size_t row = 0; row < rows(); row++) {
         for (size_t col = 0; col < columns(); col++) {
             try {
-                std::cout << at(row, col);
+                std::cout << std::setw(prec + 3) << at(row, col);
             } catch (const std::domain_error& e) {
-                std::cout << 0;
+                std::cout << std::setw(prec + 3) << 0.0;
             }
 
             if (col != columns() - 1) {

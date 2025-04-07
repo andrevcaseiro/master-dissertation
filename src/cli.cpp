@@ -15,7 +15,8 @@
 
 #include "matrix/csrd_matrix.h"
 #include "monte_carlo_ode_solver.h"
-#include "read_vector.h"
+#include "spice/spice_parser.h"
+#include "utils/read_vector.h"
 
 /**
  * @brief A struct defining the matrix exponential command
@@ -131,7 +132,7 @@ struct Solve {
             expected_res = read_vector(res_filename)[row];
         }
 
-        MonteCarloODESolver solver(A, x_0, b, t, row, M, N, seed);
+        MonteCarloODESolver solver(A, b, x_0, t, row, M, N, seed);
 
         double time = -omp_get_wtime();
         float res = solver.solve();
@@ -199,13 +200,64 @@ struct SolveSequence {
             b = std::vector<float>(A.rows(), 0);
         }
 
-        MonteCarloODESolver solver(A, x_0, b, t, row, M, N, seed);
+        MonteCarloODESolver solver(A, b, x_0, t, row, M, N, seed);
 
         std::vector<float> res = solver.solve_sequence();
 
         std::cout << std::setw(10) << std::fixed << std::setprecision(5);
         for (size_t i = 0; i < res.size(); i++) {
             std::cout << res[i] << std::endl;
+        }
+    }
+};
+
+/**
+ * @brief A struct defining the general case ODE solver command
+ */
+struct SolveSpice {
+    std::string spice_filename;
+    std::string res_filename;
+    size_t M;
+    size_t N;
+    size_t row;
+    float t;
+    long seed;
+
+    SolveSpice(CLI::App& app) : res_filename(""), row(0), t(1), seed(-1) {
+        auto cmd = app.add_subcommand("solve-spice", "Solve transient analysis from a spice file.");
+
+        cmd->add_option("spice_file", spice_filename, "Filename")->required();
+        cmd->add_option("-r,--res_file", res_filename, "Filename of vector with expected result");
+
+        cmd->add_option("M", M, "Number of samples")->required();
+        cmd->add_option("N", N, "Splitting parameter")->required();
+        cmd->add_option("row", row, "Solution row")->capture_default_str();
+        cmd->add_option("t", t, "Solution time")->capture_default_str();
+        cmd->add_option("seed", seed, "Seed (-1 for random)")->capture_default_str();
+
+        cmd->callback([this]() { execute(); });
+    }
+
+    void execute() {
+        SpiceParser sp(spice_filename);
+
+        auto& C = sp.get_C();
+
+        std::cout << "C:" << std::endl;
+
+        for (auto it : C) {
+            std::cout << it << " ";
+        }
+
+        std::cout << std::endl << "G:" << std::endl;
+
+        auto G = sp.get_G();
+        G.print();
+
+        const auto& b = sp.get_b();
+        std::cout << std::endl << "B:" << std::endl;
+        for (const auto& it : b) {
+            std::cout << it->to_string() << std::endl;
         }
     }
 };
@@ -223,6 +275,7 @@ int main(int argc, char** argv) {
     Solve solveCmd{app};
     SolveSequence solveSequenceCmd{app};
     ExpM expmCmd{app};
+    SolveSpice solveSpiceCmd{app};
 
     CLI11_PARSE(app, argc, argv);
     return 0;

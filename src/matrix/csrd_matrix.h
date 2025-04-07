@@ -2,6 +2,8 @@
 #include <string>
 #include <vector>
 
+#include "coo_matrix.h"
+
 template <typename T>
 class CSRRow;
 
@@ -53,6 +55,14 @@ class CSRMatrix {
     static CSRMatrix<T> from_coo(const std::string& filepath);
 
     /**
+     * @brief Constructs a new CSRMatrix from a COOMatrix
+     *
+     * @param matrix sparse matrix in coordinate format
+     * @return CSRMatrix<T>
+     */
+    static CSRMatrix<T> from_coo(COOMatrix<T>& matrix);
+
+    /**
      * @brief Number of rows
      *
      * @return int number of rows
@@ -94,7 +104,7 @@ class CSRMatrix {
     /**
      * @brief Prints the matrix to cout
      */
-    void print();
+    void print(int prec = 3);
 
     /**
      * @brief Prints the CSR structures to cout
