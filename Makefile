@@ -16,7 +16,12 @@ TARGET = main
 CLI11_HPP = external/CLI11.hpp
 CLI11_URL = https://github.com/CLIUtils/CLI11/releases/download/v2.5.0/CLI11.hpp
 
-all: $(CLI11_HPP) $(TARGET)
+# Download eigen
+EIGEN_URL = https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.bz2
+EIGEN_ARCHIVE = $(notdir $(EIGEN_URL))
+
+.PHONY: all
+all: external/Eigen/.dirstamp $(CLI11_HPP) $(TARGET)
 
 cli: src/cli.cpp
 
@@ -32,6 +37,13 @@ $(OBJDIRS):
 $(CLI11_HPP):
 	mkdir -p external
 	wget -O $(CLI11_HPP) $(CLI11_URL)
+
+external/Eigen/.dirstamp:
+	mkdir -p external
+	wget -O $(EIGEN_ARCHIVE) $(EIGEN_URL)
+	tar --bzip2 -xf $(EIGEN_ARCHIVE) --strip-components=1 -C external eigen-3.4.0/Eigen
+	rm $(EIGEN_ARCHIVE)
+	touch $@
 
 .PHONY: clean
 clean:
