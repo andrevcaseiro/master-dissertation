@@ -178,25 +178,25 @@ void SpiceParser::gen_mna() {
         if (c.node1 >= 0) {
             G_coo.insert_or_add(new_row, c.node1, -1.0f);
             G_coo.insert_or_add(c.node1, new_row, -1.0f);
+            *b[new_row] *= -1;
         }
         if (c.node2 >= 0) {
             G_coo.insert_or_add(new_row, c.node2, -1.0f);
             G_coo.insert_or_add(c.node2, new_row, -1.0f);
-            *b[new_row] *= -1;
         }
     }
 
     for (Component c : isources) {
         if (c.pulse) {
             const PulseParams& p = c.pulse.value();
-            if (c.node1 >= 0)
-                b[c.node1] = *b[c.node1] + PulseFunction(p.v1, p.v2, p.td, p.tr, p.tf, p.pw, p.per);
             if (c.node2 >= 0)
-                b[c.node2] =
-                    *b[c.node2] + PulseFunction(-p.v1, -p.v2, p.td, p.tr, p.tf, p.pw, p.per);
+                b[c.node2] = *b[c.node2] + PulseFunction(p.v1, p.v2, p.td, p.tr, p.tf, p.pw, p.per);
+            if (c.node1 >= 0)
+                b[c.node1] =
+                    *b[c.node1] + PulseFunction(-p.v1, -p.v2, p.td, p.tr, p.tf, p.pw, p.per);
         } else {
-            if (c.node1 >= 0) *b[c.node1] += c.value;
-            if (c.node2 >= 0) *b[c.node2] += -c.value;
+            if (c.node2 >= 0) *b[c.node2] += c.value;
+            if (c.node1 >= 0) *b[c.node1] += -c.value;
         }
     }
 

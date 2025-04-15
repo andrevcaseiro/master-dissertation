@@ -270,29 +270,6 @@ struct SolveSpice {
             }
         }
 
-        /* Compute A = -C^-1 G and b = C^-1 Bu */
-        for (size_t i = 0; i < C.size(); ++i) {
-            float c = C[i];
-            c = c != 0 ? 1 / c : 1;
-
-            for (auto entry : G.row(i)) {
-                entry.value() *= -c;
-            }
-
-            *b[i] *= c;
-        }
-
-        /* Print final matrices */
-        if (verbose) {
-            std::cout << std::endl << "A:" << std::endl;
-            G.print();
-
-            std::cout << std::endl << "Bu:" << std::endl;
-            for (const auto& it : b) {
-                std::cout << it->to_string() << std::endl;
-            }
-        }
-
         /* Convert to Eigen sparse matrix */
         Eigen::SparseMatrix<float> eigen_G(G.rows(), G.columns());
         for (size_t row = 0; row < G.rows(); ++row) {
@@ -327,6 +304,29 @@ struct SolveSpice {
             std::cout << std::endl << "Initial Transient Solution:" << std::endl;
             for (auto v : x_0) {
                 std::cout << v << std::endl;
+            }
+        }
+
+        /* Compute A = -C^-1 G and b = C^-1 Bu */
+        for (size_t i = 0; i < C.size(); ++i) {
+            float c = C[i];
+            c = c != 0 ? 1 / c : 1;
+
+            for (auto entry : G.row(i)) {
+                entry.value() *= -c;
+            }
+
+            *b[i] *= c;
+        }
+
+        /* Print final matrices */
+        if (verbose) {
+            std::cout << std::endl << "A:" << std::endl;
+            G.print();
+
+            std::cout << std::endl << "Bu:" << std::endl;
+            for (const auto& it : b) {
+                std::cout << it->to_string() << std::endl;
             }
         }
 
