@@ -53,13 +53,33 @@ MonteCarloODESolver::MonteCarloODESolver(CSRMatrix<float>& A, std::vector<float>
                                          size_t N, long seed)
     : _A(A),
       _x_0(x_0),
-      _b(b),
       _t(t),
       _row(row),
       _M(M),
       _N(N),
       _seed(seed >= 0 ? seed : std::random_device{}()),
-      _init(false) {}
+      _init(false) {
+    for (auto value : b) {
+        _b.push_back(std::make_unique<ConstantFunction>(value));
+    }
+}
+
+MonteCarloODESolver::MonteCarloODESolver(CSRMatrix<float>& A,
+                                         std::vector<std::unique_ptr<TimeFunction>>& b,
+                                         std::vector<float>& x_0, float t, size_t row, size_t M,
+                                         size_t N, long seed)
+    : _A(A),
+      _x_0(x_0),
+      _t(t),
+      _row(row),
+      _M(M),
+      _N(N),
+      _seed(seed >= 0 ? seed : std::random_device{}()),
+      _init(false) {
+    for (auto& value : b) {
+        _b.push_back(std::move(value));
+    }
+}
 
 void MonteCarloODESolver::init() {
     if (_init) return;
@@ -101,7 +121,7 @@ float MonteCarloODESolver::solve() {
 
             size_t state = _row;
             float exponential = 1;
-            float integral = _b[state];
+            float integral = (*_b[state])(_t);
             for (size_t n = 1; n <= _N; n++) {
                 exponential *= exp(_D[state] * delta_t / 2);
 
@@ -112,7 +132,7 @@ float MonteCarloODESolver::solve() {
                 }
 
                 exponential *= exp(_D[state] * delta_t / 2);
-                integral += w(n) * exponential * _b[state];
+                integral += w(n) * exponential * (*_b[state])(_t - n * delta_t);
             }
 
             float sample = exponential * _x_0[state] + integral * delta_t / 3;
@@ -144,7 +164,7 @@ std::vector<float> MonteCarloODESolver::solve_sequence() {
 
             size_t state = _row;
             float exponential = 1;
-            float integral = _b[state];
+            float integral = (*_b[state])(_t);
             for (size_t n = 2; n <= _N; n += 2) {
                 /* Unroll loops to calculate result on even n */
                 exponential *= exp(_D[state] * delta_t / 2);
@@ -157,7 +177,7 @@ std::vector<float> MonteCarloODESolver::solve_sequence() {
 
                 exponential *= exp(_D[state] * delta_t / 2);
 
-                integral += 4 * exponential * _b[state];
+                integral += 4 * exponential * (*_b[state])(_t - (n - 1) * delta_t);
 
                 exponential *= exp(_D[state] * delta_t / 2);
 
@@ -169,11 +189,12 @@ std::vector<float> MonteCarloODESolver::solve_sequence() {
 
                 exponential *= exp(_D[state] * delta_t / 2);
 
-                float tmp_integral = integral + 1 * exponential * _b[state];
+                float b = (*_b[state])(_t - n * delta_t);
+                float tmp_integral = integral + 1 * exponential * b;
                 float sample = exponential * _x_0[state] + tmp_integral * delta_t / 3;
                 local_res[n / 2] += sample / _M;
 
-                integral += 2 * exponential * _b[state];
+                integral += 2 * exponential * b;
             }
         }
 

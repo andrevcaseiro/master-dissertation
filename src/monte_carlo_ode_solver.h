@@ -1,11 +1,15 @@
 #pragma once
+
+#include <memory>
+
 #include "matrix/csrd_matrix.h"
+#include "spice/time_function.h"
 
 class MonteCarloODESolver {
    private:
     CSRMatrix<float>& _A;
     std::vector<float>& _x_0;
-    std::vector<float>& _b;
+    std::vector<std::unique_ptr<TimeFunction>> _b;
     std::vector<float> _D;
     CSRMatrix<float> _L;
     float _t;
@@ -50,15 +54,32 @@ class MonteCarloODESolver {
      * @brief ODE configuration
      *
      * @param A A
+     * @param b b
      * @param x_0 initial state
      * @param t Time instant
-     * @param i Vector entry
+     * @param row Vector entry
      * @param M Number of samples
      * @param N Number of time steps
      * @return float The calculated value
      */
     MonteCarloODESolver(CSRMatrix<float>& A, std::vector<float>& b, std::vector<float>& x_0,
-                        float t, size_t i, size_t M, size_t N, long seed);
+                        float t, size_t row, size_t M, size_t N, long seed);
+
+    /**
+     * @brief ODE configuration
+     *
+     * @param A A
+     * @param b b
+     * @param x_0 initial state
+     * @param t Time instant
+     * @param row Vector entry
+     * @param M Number of samples
+     * @param N Number of time steps
+     * @return float The calculated value
+     */
+    MonteCarloODESolver(CSRMatrix<float>& A, std::vector<std::unique_ptr<TimeFunction>>& b,
+                        std::vector<float>& x_0, float t, size_t row, size_t M, size_t N,
+                        long seed);
 
     /**
      * @brief Prepares structures to solve

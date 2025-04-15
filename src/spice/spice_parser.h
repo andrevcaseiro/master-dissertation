@@ -43,10 +43,10 @@ class SpiceParser {
 
     void parse_file(std::string filepath);
     void gen_mna();
-    int get_node_index(const std::string& node);
 
    public:
     SpiceParser(std::string filepath);
+    int get_node_index(const std::string& node);
 
     std::vector<float>& get_C() { return C; }
     CSRMatrix<float>& get_G() { return G; }

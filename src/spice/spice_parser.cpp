@@ -7,10 +7,15 @@
 #include "../matrix/coo_matrix.h"
 #include "time_function.h"
 
-#define FLOAT_PATTERN R"([\d.eE+-]+)"  // Matches numbers, including scientific notation
-#define COMMA_PATTERN R"(\s*,\s*)"     // Matches a comma with optional spaces
-#define PULSE_REGEX \
-    R"(pulse\(\s*" FLOAT_PATTERN COMMA_PATTERN FLOAT_PATTERN COMMA_PATTERN FLOAT_PATTERN COMMA_PATTERN FLOAT_PATTERN COMMA_PATTERN FLOAT_PATTERN COMMA_PATTERN FLOAT_PATTERN COMMA_PATTERN FLOAT_PATTERN R"(\s*\)))"
+#define FLOAT_PATTERN R"(([\d.eE+-]+))"  // Matches numbers, including scientific notation
+#define COMMA_PATTERN R"(\s*)"       // Matches a comma with optional spaces
+#define PULSE_START R"(pulse\(\s*)"
+#define PULSE_END R"(\s*\))"
+
+#define PULSE_REGEX                                                                            \
+    std::string(PULSE_START) + FLOAT_PATTERN + COMMA_PATTERN + FLOAT_PATTERN + COMMA_PATTERN + \
+        FLOAT_PATTERN + COMMA_PATTERN + FLOAT_PATTERN + COMMA_PATTERN + FLOAT_PATTERN +        \
+        COMMA_PATTERN + FLOAT_PATTERN + COMMA_PATTERN + FLOAT_PATTERN + PULSE_END
 
 SpiceParser::SpiceParser(std::string filepath) {
     parse_file(filepath);
@@ -46,7 +51,31 @@ void SpiceParser::parse_file(std::string filepath) {
                 iss >> node1_str >> node2_str >> value;
                 node1 = get_node_index(node1_str);
                 node2 = get_node_index(node2_str);
-                vsources.emplace_back(name, node1, node2, value);
+
+                {
+                    std::string rest_of_line;
+                    std::getline(iss, rest_of_line);
+
+                    static const std::regex pulse_regex(PULSE_REGEX);
+                    std::smatch match;
+
+                    if (std::regex_search(rest_of_line, match, pulse_regex)) {
+                        // Extract pulse parameters from the regex match
+                        float v1 = std::stof(match[1]);
+                        float v2 = std::stof(match[2]);
+                        float td = std::stof(match[3]);
+                        float tr = std::stof(match[4]);
+                        float tf = std::stof(match[5]);
+                        float pw = std::stof(match[6]);
+                        float per = std::stof(match[7]);
+
+                        vsources.emplace_back(name, node1, node2, value, v1, v2, td, tr, tf, pw,
+                                              per);
+                    } else {
+                        // Regular voltage source (no pulse function)
+                        vsources.emplace_back(name, node1, node2, value);
+                    }
+                }
                 break;
             case 'i': /* Current source */
                 iss >> node1_str >> node2_str >> value;
@@ -135,35 +164,42 @@ void SpiceParser::gen_mna() {
 
     for (Component c : vsources) {
         size_t new_row = G_coo.increase_size() - 1;
+        
+        C.push_back(0);
 
-        if (c.node1 >= 0) {
-            G_coo.insert_or_add(new_row, c.node1, 1.0f);
-            G_coo.insert_or_add(c.node1, new_row, 1.0f);
+        if (c.pulse) {
+            const PulseParams& p = c.pulse.value();
+            b.push_back(std::make_unique<PulseFunction>(p.v1, p.v2, p.td, p.tr, p.tf, p.pw, p.per));
+        } else {
+            b.push_back(std::make_unique<ConstantFunction>(c.value));
         }
 
+        /* Set signal of i */
+        if (c.node1 >= 0) {
+            G_coo.insert_or_add(new_row, c.node1, -1.0f);
+            G_coo.insert_or_add(c.node1, new_row, -1.0f);
+        }
         if (c.node2 >= 0) {
             G_coo.insert_or_add(new_row, c.node2, -1.0f);
             G_coo.insert_or_add(c.node2, new_row, -1.0f);
+            *b[new_row] *= -1;
         }
-
-        b.push_back(std::make_unique<ConstantFunction>(c.value));
     }
 
     for (Component c : isources) {
         if (c.pulse) {
             const PulseParams& p = c.pulse.value();
-            if (c.node2 >= 0)
-                b[c.node2] = *b[c.node2] + PulseFunction(p.v1, p.v2, p.td, p.tr, p.tf, p.pw, p.per);
             if (c.node1 >= 0)
-                b[c.node1] =
-                    *b[c.node1] + PulseFunction(-p.v1, -p.v2, p.td, p.tr, p.tf, p.pw, p.per);
+                b[c.node1] = *b[c.node1] + PulseFunction(p.v1, p.v2, p.td, p.tr, p.tf, p.pw, p.per);
+            if (c.node2 >= 0)
+                b[c.node2] =
+                    *b[c.node2] + PulseFunction(-p.v1, -p.v2, p.td, p.tr, p.tf, p.pw, p.per);
         } else {
-            if (c.node2 >= 0) *b[c.node2] += c.value;
-            if (c.node1 >= 0) *b[c.node1] += -c.value;
+            if (c.node1 >= 0) *b[c.node1] += c.value;
+            if (c.node2 >= 0) *b[c.node2] += -c.value;
         }
     }
 
-    G_coo.print();
     G = CSRMatrix<float>::from_coo(G_coo);
 }
 

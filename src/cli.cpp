@@ -12,6 +12,7 @@
 #include <omp.h>
 
 #include <CLI11.hpp>
+#include <Eigen/Sparse>
 
 #include "matrix/csrd_matrix.h"
 #include "monte_carlo_ode_solver.h"
@@ -219,11 +220,14 @@ struct SolveSpice {
     std::string res_filename;
     size_t M;
     size_t N;
-    size_t row;
+    std::string node;
     float t;
     long seed;
+    bool solve_sequence;
+    bool verbose;
 
-    SolveSpice(CLI::App& app) : res_filename(""), row(0), t(1), seed(-1) {
+    SolveSpice(CLI::App& app)
+        : res_filename(""), node(""), t(1), seed(-1), solve_sequence(false), verbose(false) {
         auto cmd = app.add_subcommand("solve-spice", "Solve transient analysis from a spice file.");
 
         cmd->add_option("spice_file", spice_filename, "Filename")->required();
@@ -231,33 +235,120 @@ struct SolveSpice {
 
         cmd->add_option("M", M, "Number of samples")->required();
         cmd->add_option("N", N, "Splitting parameter")->required();
-        cmd->add_option("row", row, "Solution row")->capture_default_str();
+        cmd->add_option("node", node, "Solution node");
         cmd->add_option("t", t, "Solution time")->capture_default_str();
         cmd->add_option("seed", seed, "Seed (-1 for random)")->capture_default_str();
+
+        cmd->add_flag("-s", solve_sequence, "Print the full sequence of values")
+            ->capture_default_str();
+        cmd->add_flag("-v,--verbose", verbose, "Print matrices and vectors")->capture_default_str();
 
         cmd->callback([this]() { execute(); });
     }
 
     void execute() {
         SpiceParser sp(spice_filename);
-
         auto& C = sp.get_C();
+        CSRMatrix<float>& G = sp.get_G();
+        auto& b = sp.get_b();
 
-        std::cout << "C:" << std::endl;
+        size_t row = node.empty() ? 0 : sp.get_node_index(node);
 
-        for (auto it : C) {
-            std::cout << it << " ";
+        /* Print initial matrices */
+        if (verbose) {
+            std::cout << "C:" << std::endl;
+            for (auto it : C) {
+                std::cout << it << std::endl;
+            }
+
+            std::cout << std::endl << "G:" << std::endl;
+            G.print();
+
+            std::cout << std::endl << "Bu:" << std::endl;
+            for (const auto& it : b) {
+                std::cout << it->to_string() << std::endl;
+            }
         }
 
-        std::cout << std::endl << "G:" << std::endl;
+        /* Compute A = -C^-1 G and b = C^-1 Bu */
+        for (size_t i = 0; i < C.size(); ++i) {
+            float c = C[i];
+            c = c != 0 ? 1 / c : 1;
 
-        auto G = sp.get_G();
-        G.print();
+            for (auto entry : G.row(i)) {
+                entry.value() *= -c;
+            }
 
-        const auto& b = sp.get_b();
-        std::cout << std::endl << "B:" << std::endl;
-        for (const auto& it : b) {
-            std::cout << it->to_string() << std::endl;
+            *b[i] *= c;
+        }
+
+        /* Print final matrices */
+        if (verbose) {
+            std::cout << std::endl << "A:" << std::endl;
+            G.print();
+
+            std::cout << std::endl << "Bu:" << std::endl;
+            for (const auto& it : b) {
+                std::cout << it->to_string() << std::endl;
+            }
+        }
+
+        /* Convert to Eigen sparse matrix */
+        Eigen::SparseMatrix<float> eigen_G(G.rows(), G.columns());
+        for (size_t row = 0; row < G.rows(); ++row) {
+            for (auto entry : G.row(row)) {
+                eigen_G.insert(entry.row(), entry.column()) = entry.value();
+            }
+        }
+        Eigen::SparseLU<Eigen::SparseMatrix<float>> eigen_solver;
+        eigen_solver.compute(eigen_G);
+        if (eigen_solver.info() != Eigen::Success) {
+            std::cout << "Failed to compute the initial conditions" << std::endl;
+            return;
+        }
+
+        Eigen::VectorXf eigen_b(b.size());
+        for (size_t i = 0; i < b.size(); ++i) {
+            eigen_b(i) = (*b[i])(0);
+        }
+
+        Eigen::VectorXf x = eigen_solver.solve(eigen_b);
+        if (eigen_solver.info() != Eigen::Success) {
+            std::cout << "Failed to compute the initial conditions" << std::endl;
+            return;
+        }
+
+        std::vector<float> x_0(C.size(), 0);
+        for (size_t i = 0; i < b.size(); ++i) {
+            x_0[i] = x[i];
+        }
+
+        if (verbose) {
+            std::cout << std::endl << "Initial Transient Solution:" << std::endl;
+            for (auto v : x_0) {
+                std::cout << v << std::endl;
+            }
+        }
+
+        MonteCarloODESolver solver(G, b, x_0, t, row, M, N, seed);
+        if (solve_sequence) {
+            std::vector<float> res = solver.solve_sequence();
+
+            float delta_t = 2 * t / N;
+
+            std::cout << std::setw(10) << std::fixed << std::setprecision(5);
+            for (size_t i = 0; i < res.size(); i++) {
+                std::cout << delta_t * i << " " << res[i] << std::endl;
+            }
+        } else {
+            double time = -omp_get_wtime();
+            float res = solver.solve();
+            time += omp_get_wtime();
+
+            std::cout << std::setw(8) << std::left << "Result:" << std::setw(10) << std::right
+                      << std::fixed << std::setprecision(5) << res << std::endl;
+            std::cout << std::setw(8) << std::left << "Time:" << std::setw(10) << std::right
+                      << std::fixed << std::setprecision(3) << time << " s" << std::endl;
         }
     }
 };
