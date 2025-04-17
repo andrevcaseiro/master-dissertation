@@ -7,3 +7,6 @@ local
 test/res
 external
 bin
+
+# Python cache
+**/__pycache__
