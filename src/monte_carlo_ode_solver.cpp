@@ -158,13 +158,14 @@ std::vector<float> MonteCarloODESolver::solve_sequence() {
 
         std::vector<float> local_res(_N / 2 + 1, 0);
 
+        std::vector<float> integrals(_N / 2 + 1, 0);
 #pragma omp for
         for (size_t m = 0; m < _M; m++) {
             /* Samples are divided equally among threads */
 
             size_t state = _row;
             float exponential = 1;
-            float integral = (*_b[state])(_t);
+            for (size_t n = 1; n < integrals.size(); ++n) integrals[n] = (*_b[state])(n * delta_t);
             for (size_t n = 2; n <= _N; n += 2) {
                 /* Unroll loops to calculate result on even n */
                 exponential *= exp(_D[state] * delta_t / 2);
@@ -177,7 +178,9 @@ std::vector<float> MonteCarloODESolver::solve_sequence() {
 
                 exponential *= exp(_D[state] * delta_t / 2);
 
-                integral += 4 * exponential * (*_b[state])(_t - (n - 1) * delta_t);
+                size_t current_n = n - 1;
+                for (size_t m = n / 2; m < integrals.size(); ++m)
+                    integrals[m] += 4 * exponential * (*_b[state])((2 * m - current_n) * delta_t);
 
                 exponential *= exp(_D[state] * delta_t / 2);
 
@@ -189,12 +192,12 @@ std::vector<float> MonteCarloODESolver::solve_sequence() {
 
                 exponential *= exp(_D[state] * delta_t / 2);
 
-                float b = (*_b[state])(_t - n * delta_t);
-                float tmp_integral = integral + 1 * exponential * b;
-                float sample = exponential * _x_0[state] + tmp_integral * delta_t / 3;
-                local_res[n / 2] += sample / _M;
+                for (size_t m = n / 2 + 1; m < integrals.size(); ++m)
+                    integrals[m] += 2 * exponential * (*_b[state])((2 * m - n) * delta_t);
 
-                integral += 2 * exponential * b;
+                integrals[n / 2] += 1 * exponential * (*_b[state])(0);
+                float sample = exponential * _x_0[state] + integrals[n / 2] * delta_t / 3;
+                local_res[n / 2] += sample / _M;
             }
         }
 
