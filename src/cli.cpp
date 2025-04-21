@@ -227,16 +227,16 @@ struct SolveSpice {
     bool verbose;
 
     SolveSpice(CLI::App& app)
-        : res_filename(""), node(""), t(1), seed(-1), solve_sequence(false), verbose(false) {
+        : res_filename(""), N(0), node("-"), t(0), seed(-1), solve_sequence(false), verbose(false) {
         auto cmd = app.add_subcommand("solve-spice", "Solve transient analysis from a spice file.");
 
         cmd->add_option("spice_file", spice_filename, "Filename")->required();
         cmd->add_option("-r,--res_file", res_filename, "Filename of vector with expected result");
 
         cmd->add_option("M", M, "Number of samples")->required();
-        cmd->add_option("N", N, "Splitting parameter")->required();
-        cmd->add_option("node", node, "Solution node");
-        cmd->add_option("t", t, "Solution time")->capture_default_str();
+        cmd->add_option("N", N, "Splitting parameter (0 to read from file)")->capture_default_str();
+        cmd->add_option("node", node, "Solution node (- to read from file)")->capture_default_str();
+        cmd->add_option("t", t, "Solution time (-1 to read from  file)")->capture_default_str();
         cmd->add_option("seed", seed, "Seed (-1 for random)")->capture_default_str();
 
         cmd->add_flag("-s", solve_sequence, "Print the full sequence of values")
@@ -252,10 +252,18 @@ struct SolveSpice {
         CSRMatrix<float>& G = sp.get_G();
         auto& b = sp.get_b();
 
+        if (t == 0) t = sp.get_time();
+        if (N == 0) N = sp.get_time() / sp.get_timestep();
+        if (node == "-") node = sp.get_print_node();
+
         size_t row = node.empty() ? 0 : sp.get_node_index(node);
 
         /* Print initial matrices */
         if (verbose) {
+            std::cout << "time: " << t << std::endl;
+            std::cout << "N: " << N << std::endl;
+            std::cout << "node: " << node << std::endl;
+
             std::cout << "C:" << std::endl;
             for (auto it : C) {
                 std::cout << it << std::endl;

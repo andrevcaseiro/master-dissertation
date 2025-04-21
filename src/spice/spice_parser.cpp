@@ -8,7 +8,7 @@
 #include "time_function.h"
 
 #define FLOAT_PATTERN R"(([\d.eE+-]+))"  // Matches numbers, including scientific notation
-#define COMMA_PATTERN R"(\s*)"       // Matches a comma with optional spaces
+#define COMMA_PATTERN R"(\s*)"           // Matches a comma with optional spaces
 #define PULSE_START R"(pulse\(\s*)"
 #define PULSE_END R"(\s*\))"
 
@@ -122,7 +122,31 @@ void SpiceParser::parse_file(std::string filepath) {
             case '*': /* Comment */
                 break;
             case '.': /* Command */
-                      /* TODO */
+                if (name == ".tran") {
+                    if (!(iss >> timestep >> time)) {
+                        throw std::runtime_error("Failed to parese .tran command.");
+                    }
+                } else if (name == ".print") {
+                    std::string print_type;
+                    if (iss >> print_type && print_type == "tran") {
+                        std::string expression;
+                        if (iss >> expression) {
+                            print_node = expression.substr(2, expression.size() - 3);
+                            std::cout << print_node << std::endl;
+
+                            std::string extra;
+                            if (iss >> extra) {
+                                std::cerr << "Warning: Only the first node in .print is calculated" << std::endl;
+                            }
+                        } else {
+                            throw std::runtime_error("Missing node in .print tran.");
+                        }
+                    }
+                } else if (name == ".end") {
+                    /* Ignore */
+                } else {
+                    std::cerr << "Warning: Unknown command: " << name << std::endl;
+                }
                 break;
             default:
                 break;
@@ -164,7 +188,7 @@ void SpiceParser::gen_mna() {
 
     for (Component c : vsources) {
         size_t new_row = G_coo.increase_size() - 1;
-        
+
         C.push_back(0);
 
         if (c.pulse) {

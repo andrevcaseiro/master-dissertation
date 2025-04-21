@@ -40,6 +40,9 @@ class SpiceParser {
     std::list<Component> resistors;
     std::list<Component> capacitors;
     std::unordered_map<std::string, int> node_map;
+    float timestep;
+    float time;
+    std::string print_node;
 
     void parse_file(std::string filepath);
     void gen_mna();
@@ -51,4 +54,7 @@ class SpiceParser {
     std::vector<float>& get_C() { return C; }
     CSRMatrix<float>& get_G() { return G; }
     std::vector<std::unique_ptr<TimeFunction>>& get_b() { return b; }
+    float get_timestep() { return timestep; }
+    float get_time() { return time; }
+    std::string get_print_node() { return print_node; }
 };
