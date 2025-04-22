@@ -132,7 +132,6 @@ void SpiceParser::parse_file(std::string filepath) {
                         std::string expression;
                         if (iss >> expression) {
                             print_node = expression.substr(2, expression.size() - 3);
-                            std::cout << print_node << std::endl;
 
                             std::string extra;
                             if (iss >> extra) {
