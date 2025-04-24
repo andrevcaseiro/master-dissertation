@@ -2,20 +2,12 @@ import subprocess
 import matplotlib.pyplot as plt
 import re
 import pandas as pd
-from plot_expected import df as python_df
+import numpy as np
 
-""" result = subprocess.run(['make', 'clean'], capture_output=True, text=True)
-print(result.stdout)
-
-result = subprocess.run(['make', '-j'], capture_output=True, text=True)
-print(result.stdout)
-
-if result.returncode != 0:
-    print("Make failed!")
-    exit(1) """
+filename = "test/spice/line3.spice"
 
 # Run and parse NgSpice
-result = subprocess.run(['ngspice', '-b', 'test/spice/simple.spice'], capture_output=True, text=True)
+result = subprocess.run(['ngspice', '-b', filename], capture_output=True, text=True)
 if result.returncode != 0:
     print("ngspice failed!")
     exit(1)
@@ -31,11 +23,11 @@ for line in result.stdout.splitlines():
         value = float(match.group(3))
         spice_data.append((index, time, value))
 
-spice_df = pd.DataFrame(spice_data, columns=["index", "time", "v(v1)"])
+spice_df = pd.DataFrame(spice_data, columns=["index", "time", "voltage"])
 
 
-# Run and parse this tool
-result = subprocess.run(['./main', 'solve-spice', './test/spice/simple.spice', '100000', '1000', 'v1', '100', '-s'], capture_output=True, text=True)
+# Run and parse Monte Carlo tool
+result = subprocess.run(['./main', 'solve-spice', filename, '1000', '0', '-', '0', '-s'], capture_output=True, text=True)
 
 data = []
 for line in result.stdout.splitlines():
@@ -45,20 +37,51 @@ for line in result.stdout.splitlines():
         voltage = float(parts[1])
         data.append((time, voltage))
 
-df = pd.DataFrame(data, columns=["time", "v(v1)"])
+df = pd.DataFrame(data, columns=["time", "voltage"])
 
+# Calculate error
+df["expected"] = np.interp(df['time'], spice_df['time'], spice_df['voltage'])
+
+# Calculate error (e.g., absolute error, squared error, etc.)
+df['abs_error'] = np.abs(df['voltage'] - df['expected'])
+df['squared_error'] = (df['voltage'] - df['expected']) ** 2
+
+# Optional: summary metrics
+mae = df['abs_error'].mean()
+mse = df['squared_error'].mean()
+rmse = np.sqrt(mse)
+
+print(f"MAE:  {mae:.4f}\nMSE:  {mse:.4f}\nRMSE: {rmse:.4f}")
 
 # Plot both data frames
 
 fig, ax = plt.subplots()
 
-spice_df.plot(x='time', y='v(v1)', label='NgSpice', linewidth=3, ax=ax)
-df.plot(x='time', y='v(v1)', label='Monte Carlo', linewidth=2, ax=ax)
-python_df.plot(x='time', y='v(v1)', label='Scipy', linewidth=1, ax=ax)
+ax.plot(df['time'], df['expected'], label='NgSpice', color="orange", linewidth=2)
+ax.plot(df['time'], df['voltage'], label='Monte Carlo', color="steelblue", linewidth=2)
+#from plot_expected import df as pythondf
+#ax.plot(pythondf['time'], pythondf['v(v5)'], label='Python', color="steelblue", linewidth=2)
+
+ax.fill_between(df['time'],df['expected'], df['voltage'], color='gray', alpha=0.3, label='Error band')
+max_error_idx = df['abs_error'].idxmax()
+max_time = df.loc[max_error_idx, 'time']
+max_val = df.loc[max_error_idx, 'voltage']
+max_error = df.loc[max_error_idx, 'abs_error']
+
+# Scatter and annotation
+dir = 1 if df.loc[max_error_idx, 'voltage'] > df.loc[max_error_idx, 'expected'] else -1
+ax.annotate(f'Max error: {max_error:.2f}',
+            xy=(max_time, max_val),
+            xytext=(max_time, max_val + dir * 0.07 * (df['voltage'].max() - df['voltage'].min())),
+            ha='center',
+            va='bottom' if dir == 1 else 'top',
+            arrowprops=dict(arrowstyle="->", color='red'),
+            )
+
 
 ax.set_title('Comparison of Two Series')
 ax.set_xlabel("Time (s)")
-ax.set_ylabel("Voltage v(v1)")
+ax.set_ylabel("Voltage (V)")
 ax.grid(True)
 ax.legend()
 
