@@ -49,7 +49,7 @@ struct ExpM {
     void execute() {
         CSRMatrix<float> A = CSRMatrix<float>::from_coo(A_filename);
 
-        float expected_res;
+        float expected_res = 0;
         if (!res_filename.empty()) {
             expected_res = CSRMatrix<float>::from_coo(res_filename).at(row, col);
         }
@@ -128,7 +128,7 @@ struct Solve {
             b = std::vector<float>(A.rows(), 0);
         }
 
-        float expected_res;
+        float expected_res = 0;
         if (!res_filename.empty()) {
             expected_res = read_vector(res_filename)[row];
         }
@@ -278,14 +278,22 @@ struct SolveSpice {
             }
         }
 
-        /* Convert to Eigen sparse matrix */
-        Eigen::SparseMatrix<float> eigen_G(G.rows(), G.columns());
+        std::vector<Eigen::Triplet<float>> triplets;
+        triplets.reserve(G.nnz()); // If you know or can estimate it
+        
         for (size_t row = 0; row < G.rows(); ++row) {
             for (auto entry : G.row(row)) {
-                eigen_G.insert(entry.row(), entry.column()) = entry.value();
+                triplets.emplace_back(entry.row(), entry.column(), entry.value());
             }
         }
-        Eigen::SparseLU<Eigen::SparseMatrix<float>> eigen_solver;
+        
+        Eigen::SparseMatrix<float> eigen_G(G.rows(), G.columns());
+        eigen_G.setFromTriplets(triplets.begin(), triplets.end());        
+
+        double initial_time = -omp_get_wtime();
+
+        Eigen::ConjugateGradient<Eigen::SparseMatrix<float>, Eigen::Lower | Eigen::Upper>
+            eigen_solver;
         eigen_solver.compute(eigen_G);
         if (eigen_solver.info() != Eigen::Success) {
             std::cout << "Failed to compute the initial conditions" << std::endl;
@@ -308,9 +316,17 @@ struct SolveSpice {
             x_0[i] = x[i];
         }
 
+        initial_time += omp_get_wtime();
+        if (!solve_sequence) {
+            std::cout << std::setw(20) << std::left << "DC analysis time:" << std::setw(10)
+                      << std::right << std::fixed << std::setprecision(3) << initial_time << " s"
+                      << std::endl;
+        }
+
         if (verbose) {
             std::cout << std::endl << "Initial Transient Solution:" << std::endl;
             for (auto v : x_0) {
+                std::cout << std::defaultfloat;
                 std::cout << v << std::endl;
             }
         }
@@ -344,7 +360,7 @@ struct SolveSpice {
 
             float delta_t = 2 * t / N;
 
-            std::cout << std::setw(10) << std::fixed << std::setprecision(5);
+            std::cout << std::setw(10) << std::setprecision(5);
             for (size_t i = 0; i < res.size(); i++) {
                 std::cout << delta_t * i << " " << res[i] << std::endl;
             }
@@ -353,10 +369,10 @@ struct SolveSpice {
             float res = solver.solve();
             time += omp_get_wtime();
 
-            std::cout << std::setw(8) << std::left << "Result:" << std::setw(10) << std::right
-                      << std::fixed << std::setprecision(5) << res << std::endl;
-            std::cout << std::setw(8) << std::left << "Time:" << std::setw(10) << std::right
-                      << std::fixed << std::setprecision(3) << time << " s" << std::endl;
+            std::cout << std::setw(20) << std::left << "Result:" << std::setw(10) << std::right
+                      << std::setprecision(7) << res << std::endl;
+            std::cout << std::setw(20) << std::left << "Time:" << std::setw(10) << std::right
+                      << std::setprecision(7) << time << " s" << std::endl;
         }
     }
 };

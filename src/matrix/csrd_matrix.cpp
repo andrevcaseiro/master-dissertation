@@ -221,6 +221,11 @@ CSRRow<T> CSRMatrix<T>::row(size_t row) {
 }
 
 template <typename T>
+size_t CSRMatrix<T>::nnz() {
+    return _values.size();
+}
+
+template <typename T>
 void CSRMatrix<T>::print(int prec) {
     std::cout << std::fixed << std::setprecision(prec);
     for (size_t row = 0; row < rows(); row++) {

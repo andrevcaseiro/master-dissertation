@@ -102,6 +102,13 @@ class CSRMatrix {
     CSRRow<T> row(size_t row);
 
     /**
+     * @brief Returns the number of non-zero entries
+     * 
+     * @return size_t number of non-zero entries
+     */
+    size_t nnz();
+
+    /**
      * @brief Prints the matrix to cout
      */
     void print(int prec = 3);
