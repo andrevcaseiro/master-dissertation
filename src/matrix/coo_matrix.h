@@ -2,6 +2,7 @@
 
 #include <list>
 #include <unordered_map>
+#include <cstddef>
 
 struct Coordinate {
     size_t row, col;

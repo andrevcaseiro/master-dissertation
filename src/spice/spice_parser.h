@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cmath>
+#include <optional>
 #include <list>
 #include <string>
 #include <unordered_map>
