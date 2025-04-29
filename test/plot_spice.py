@@ -4,7 +4,7 @@ import re
 import pandas as pd
 import numpy as np
 
-filename = "test/spice/line3.spice"
+filename = "test/spice/line6.spice"
 
 # Run and parse NgSpice
 result = subprocess.run(['ngspice', '-b', filename], capture_output=True, text=True)
@@ -27,7 +27,8 @@ spice_df = pd.DataFrame(spice_data, columns=["index", "time", "voltage"])
 
 
 # Run and parse Monte Carlo tool
-result = subprocess.run(['./main', 'solve-spice', filename, '1000', '0', '-', '0', '-s'], capture_output=True, text=True)
+cmd = ['./main', 'solve-spice', filename, '10000', '10000', '-', '0', '-s', '--output-freq', '100', '--dc-solver', 'SparseLU']
+result = subprocess.run(cmd, capture_output=True, text=True)
 
 data = []
 for line in result.stdout.splitlines():

@@ -16,11 +16,12 @@ def gen_spice(size, filename):
 
     # Distribute pulsed current sources at every ~3rd node
     pulse_count = 1
-    for i in range(1, size + 1):
-        if i == 1 or i % 3 == 0:
-            delay = random.choice(["0", "1e-10", "1.5e-10", "2e-10", "5e-10"])
-            lines.append(f"I{pulse_count} 0 N{i} 9.66773e-06 pulse(9.66773e-06  0.0241693 {delay} 1e-10 1e-10 1e-11 2e-09)")
-            pulse_count += 1
+    i = 1
+    while i <= size:
+        delay = random.choice(["0", "1e-10", "1.5e-10", "2e-10", "5e-10"])
+        lines.append(f"I{pulse_count} 0 N{i} 9.66773e-06 pulse(9.66773e-06  0.0241693 {delay} 1e-10 1e-10 1e-11 2e-09)")
+        pulse_count += 1
+        i += random.randint(3, 5)  # Random step between 3 and 5
 
     # Capacitors from each node to ground
     for i in range(1, size + 1):
