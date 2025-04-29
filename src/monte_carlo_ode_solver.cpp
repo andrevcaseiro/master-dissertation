@@ -143,31 +143,38 @@ float MonteCarloODESolver::solve() {
     return res;
 }
 
-std::vector<float> MonteCarloODESolver::solve_sequence() {
-    if (_N % 2 != 0) throw std::runtime_error("N must be an even number");
-
+std::vector<float> MonteCarloODESolver::solve_sequence(size_t output_N) {
     float delta_t = _t / _N;
+
+    if (output_N == 0) output_N = _N;
+    if (_N % output_N != 0) {
+        std::runtime_error(
+            "The number of output points must evenly divide the total number of steps.");
+    }
+    size_t output_freq = _N / output_N;
+    size_t output_size = output_N + 1;
 
     init();
 
-    std::vector<float> res(_N / 2 + 1, 0);
+    std::vector<float> res(output_size, 0);
 #pragma omp parallel
     {
         /* Constructing one generator per thread generates different results */
         std::mt19937 gen(_seed + omp_get_thread_num());
 
-        std::vector<float> local_res(_N / 2 + 1, 0);
+        std::vector<float> local_res(output_size, 0);
 
-        std::vector<float> integrals(_N / 2 + 1, 0);
+        std::vector<float> integrals(output_size, 0);
 #pragma omp for
         for (size_t m = 0; m < _M; m++) {
             /* Samples are divided equally among threads */
 
             size_t state = _row;
             float exponential = 1;
-            for (size_t n = 1; n < integrals.size(); ++n) integrals[n] = (*_b[state])(n * delta_t);
-            for (size_t n = 2; n <= _N; n += 2) {
-                /* Unroll loops to calculate result on even n */
+            for (size_t output_n = 1; output_n < output_size; ++output_n) {
+                integrals[output_n] = (*_b[state])(output_n * output_freq * delta_t);
+            }
+            for (size_t n = 1; n <= _N; ++n) {
                 exponential *= exp(_D[state] * delta_t / 2);
 
                 float tau = generate_time(gen, state);
@@ -178,26 +185,16 @@ std::vector<float> MonteCarloODESolver::solve_sequence() {
 
                 exponential *= exp(_D[state] * delta_t / 2);
 
-                size_t current_n = n - 1;
-                for (size_t m = n / 2; m < integrals.size(); ++m)
-                    integrals[m] += 4 * exponential * (*_b[state])((2 * m - current_n) * delta_t);
-
-                exponential *= exp(_D[state] * delta_t / 2);
-
-                tau = generate_time(gen, state);
-                while (tau < delta_t) {
-                    tau += generate_time(gen, state);
-                    state = generate_state(gen, state);
+                for (size_t output_n = n / output_freq; output_n < output_size; ++output_n) {
+                    float sample_time = ((output_n * output_freq) - n) * delta_t;
+                    integrals[output_n] += exponential * (*_b[state])(sample_time);
                 }
 
-                exponential *= exp(_D[state] * delta_t / 2);
-
-                for (size_t m = n / 2 + 1; m < integrals.size(); ++m)
-                    integrals[m] += 2 * exponential * (*_b[state])((2 * m - n) * delta_t);
-
-                integrals[n / 2] += 1 * exponential * (*_b[state])(0);
-                float sample = exponential * _x_0[state] + integrals[n / 2] * delta_t / 3;
-                local_res[n / 2] += sample / _M;
+                if (n % output_freq == 0) {
+                    size_t output_n = n / output_freq;
+                    float sample = exponential * _x_0[state] + integrals[output_n] * delta_t;
+                    local_res[output_n] += sample / _M;
+                }
             }
         }
 

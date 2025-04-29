@@ -223,21 +223,49 @@ struct SolveSpice {
     std::string node;
     float t;
     long seed;
+    std::string dc_solver;
+    std::string dc_preconditioner;
+    size_t output_freq;
     bool solve_sequence;
     bool verbose;
 
     SolveSpice(CLI::App& app)
-        : res_filename(""), N(0), node("-"), t(0), seed(-1), solve_sequence(false), verbose(false) {
+        : res_filename(""),
+          N(0),
+          node("-"),
+          t(0),
+          seed(-1),
+          dc_solver("ConjugateGradient"),
+          dc_preconditioner("DiagonalPreconditioner"),
+          output_freq(1),
+          solve_sequence(false),
+          verbose(false) {
         auto cmd = app.add_subcommand("solve-spice", "Solve transient analysis from a spice file.");
 
-        cmd->add_option("spice_file", spice_filename, "Filename")->required();
-        cmd->add_option("-r,--res_file", res_filename, "Filename of vector with expected result");
+        cmd->add_option("spice-file", spice_filename, "Filename")->required();
+        cmd->add_option("-r,--res-file", res_filename, "Filename of vector with expected result");
 
         cmd->add_option("M", M, "Number of samples")->required();
         cmd->add_option("N", N, "Splitting parameter (0 to read from file)")->capture_default_str();
         cmd->add_option("node", node, "Solution node (- to read from file)")->capture_default_str();
         cmd->add_option("t", t, "Solution time (-1 to read from  file)")->capture_default_str();
         cmd->add_option("seed", seed, "Seed (-1 for random)")->capture_default_str();
+
+        std::vector<std::string> valid_dc_solvers = {"SimplicialLLT", "SimplicialLDLT", "SparseLU",
+                                                     "ConjugateGradient"};
+        cmd->add_option("--dc-solver", dc_solver, "Sparse linear system solver for DC analysis")
+            ->capture_default_str()
+            ->check(CLI::IsMember(valid_dc_solvers));
+        std::vector<std::string> valid_preconditioners = {
+            "IdentityPreconditioner", "DiagonalPreconditioner", "IncompleteCholesky"};
+        cmd->add_option("--dc-preconditioner", dc_preconditioner,
+                        "Preconditioner for DC analysis\n(has no effect if dc-solver is not "
+                        "ConjugateGradient)")
+            ->capture_default_str()
+            ->check(CLI::IsMember(valid_preconditioners));
+
+        cmd->add_option("--output-freq", output_freq, "Fraction of N with saved output")
+            ->capture_default_str();
 
         cmd->add_flag("-s", solve_sequence, "Print the full sequence of values")
             ->capture_default_str();
@@ -279,35 +307,72 @@ struct SolveSpice {
         }
 
         std::vector<Eigen::Triplet<float>> triplets;
-        triplets.reserve(G.nnz()); // If you know or can estimate it
-        
+        triplets.reserve(G.nnz());  // If you know or can estimate it
+
         for (size_t row = 0; row < G.rows(); ++row) {
             for (auto entry : G.row(row)) {
                 triplets.emplace_back(entry.row(), entry.column(), entry.value());
             }
         }
-        
+
         Eigen::SparseMatrix<float> eigen_G(G.rows(), G.columns());
-        eigen_G.setFromTriplets(triplets.begin(), triplets.end());        
-
-        double initial_time = -omp_get_wtime();
-
-        Eigen::ConjugateGradient<Eigen::SparseMatrix<float>, Eigen::Lower | Eigen::Upper>
-            eigen_solver;
-        eigen_solver.compute(eigen_G);
-        if (eigen_solver.info() != Eigen::Success) {
-            std::cout << "Failed to compute the initial conditions" << std::endl;
-            return;
-        }
+        eigen_G.setFromTriplets(triplets.begin(), triplets.end());
 
         Eigen::VectorXf eigen_b(b.size());
         for (size_t i = 0; i < b.size(); ++i) {
             eigen_b(i) = (*b[i])(0);
         }
 
-        Eigen::VectorXf x = eigen_solver.solve(eigen_b);
-        if (eigen_solver.info() != Eigen::Success) {
-            std::cout << "Failed to compute the initial conditions" << std::endl;
+        Eigen::VectorXf x;
+
+        double initial_time = -omp_get_wtime();
+        if (dc_solver == "ConjugateGradient") {
+            Eigen::ConjugateGradient<Eigen::SparseMatrix<float>, Eigen::Lower | Eigen::Upper,
+                                     Eigen::SimplicialCholesky<Eigen::SparseMatrix<float>>>
+                eigen_solver;
+
+            // TODO eigen_solver.setMaxIterations();
+            x = eigen_solver.compute(eigen_G).solve(eigen_b);
+            if (eigen_solver.info() != Eigen::Success) {
+                std::cout << "DC analysis failed with code " << eigen_solver.info() << std::endl;
+                return;
+            }
+
+            if (!solve_sequence) {
+                std::cout << std::setw(20) << std::left << "DC analysis iters:" << std::setw(20)
+                          << std::right << std::fixed << std::setprecision(9)
+                          << eigen_solver.iterations() << std::endl;
+                std::cout << std::setw(20) << std::left << "DC analysis error:" << std::setw(20)
+                          << std::right << std::fixed << std::setprecision(9)
+                          << eigen_solver.error() << std::endl;
+            }
+        } else if (dc_solver == "SimplicialLLT") {
+            Eigen::SimplicialLLT<Eigen::SparseMatrix<float>> eigen_solver;
+
+            x = eigen_solver.compute(eigen_G).solve(eigen_b);
+            if (eigen_solver.info() != Eigen::Success) {
+                std::cout << "DC analysis failed with code " << eigen_solver.info() << std::endl;
+                return;
+            }
+        } else if (dc_solver == "SimplicialLDLT") {
+            Eigen::SimplicialLDLT<Eigen::SparseMatrix<float>> eigen_solver;
+
+            x = eigen_solver.compute(eigen_G).solve(eigen_b);
+            if (eigen_solver.info() != Eigen::Success) {
+                std::cout << "DC analysis failed with code " << eigen_solver.info() << std::endl;
+                return;
+            }
+        } else if (dc_solver == "SparseLU") {
+            Eigen::SparseLU<Eigen::SparseMatrix<float>> eigen_solver;
+
+            eigen_solver.compute(eigen_G);
+            x = eigen_solver.solve(eigen_b);
+            if (eigen_solver.info() != Eigen::Success) {
+                std::cout << "DC analysis failed with code " << eigen_solver.info() << std::endl;
+                return;
+            }
+        } else {
+            // Unreachable
             return;
         }
 
@@ -318,8 +383,8 @@ struct SolveSpice {
 
         initial_time += omp_get_wtime();
         if (!solve_sequence) {
-            std::cout << std::setw(20) << std::left << "DC analysis time:" << std::setw(10)
-                      << std::right << std::fixed << std::setprecision(3) << initial_time << " s"
+            std::cout << std::setw(20) << std::left << "DC analysis time:" << std::setw(20)
+                      << std::right << std::fixed << std::setprecision(9) << initial_time << " s"
                       << std::endl;
         }
 
@@ -356,23 +421,23 @@ struct SolveSpice {
 
         MonteCarloODESolver solver(G, b, x_0, t, row, M, N, seed);
         if (solve_sequence) {
-            std::vector<float> res = solver.solve_sequence();
+            std::vector<float> res = solver.solve_sequence(N / output_freq);
 
-            float delta_t = 2 * t / N;
+            float delta_t = t / (res.size() - 1);
 
-            std::cout << std::setw(10) << std::setprecision(5);
             for (size_t i = 0; i < res.size(); i++) {
-                std::cout << delta_t * i << " " << res[i] << std::endl;
+                std::cout << std::scientific << std::setprecision(6) << delta_t * i << " "
+                          << std::scientific << std::setprecision(7) << res[i] << std::endl;
             }
         } else {
             double time = -omp_get_wtime();
             float res = solver.solve();
             time += omp_get_wtime();
 
-            std::cout << std::setw(20) << std::left << "Result:" << std::setw(10) << std::right
-                      << std::setprecision(7) << res << std::endl;
-            std::cout << std::setw(20) << std::left << "Time:" << std::setw(10) << std::right
-                      << std::setprecision(7) << time << " s" << std::endl;
+            std::cout << std::setw(20) << std::left << "Result:" << std::setw(20) << std::right
+                      << std::scientific << std::setprecision(5) << res << " V" << std::endl;
+            std::cout << std::setw(20) << std::left << "Time:" << std::setw(20) << std::right
+                      << std::fixed << std::setprecision(9) << time << " s" << std::endl;
         }
     }
 };

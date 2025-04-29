@@ -99,5 +99,5 @@ class MonteCarloODESolver {
      *
      * @return std::vector<float> vector of size N+1 with x(n*delta t) at position n
      */
-    std::vector<float> solve_sequence();
+    std::vector<float> solve_sequence(size_t output_N = 0);
 };
