@@ -19,6 +19,7 @@
 
 SpiceParser::SpiceParser(std::string filepath) {
     parse_file(filepath);
+    reduce_nodes();
     gen_mna();
 }
 
@@ -135,7 +136,8 @@ void SpiceParser::parse_file(std::string filepath) {
 
                             std::string extra;
                             if (iss >> extra) {
-                                std::cerr << "Warning: Only the first node in .print is calculated" << std::endl;
+                                std::cerr << "Warning: Only the first node in .print is calculated"
+                                          << std::endl;
                             }
                         } else {
                             throw std::runtime_error("Missing node in .print tran.");
@@ -153,8 +155,78 @@ void SpiceParser::parse_file(std::string filepath) {
     }
 }
 
+void SpiceParser::reduce_nodes() {
+    std::vector<int> index_remap(node_map.size());
+
+    for (const auto& v : vsources) {
+        for (auto& r : resistors) {
+            std::optional<int> shared_node;
+            int a = -1, b = -1;
+
+            if (v.node1 == r.node1) {
+                shared_node = v.node1;
+                a = v.node2;
+                b = r.node2;
+            } else if (v.node1 == r.node2) {
+                shared_node = v.node1;
+                a = v.node2;
+                b = r.node1;
+            } else if (v.node2 == r.node1) {
+                shared_node = v.node2;
+                a = v.node1;
+                b = r.node2;
+            } else if (v.node2 == r.node2) {
+                shared_node = v.node2;
+                a = v.node1;
+                b = r.node1;
+            }
+
+            if (shared_node) {
+                float current = v.value / r.value;
+                std::string iname = "I_" + v.name + "_" + r.name;
+
+                isources.emplace_back(iname, a, b, current);
+
+                r.node1 = a;
+                r.node2 = b;
+
+                index_remap[shared_node.value()] = -2;
+            }
+        }
+    }
+
+    // Remove all voltage sources now that they've been transformed
+    vsources.clear();
+
+    size_t j = 0;
+    for (size_t i = 0; i < index_remap.size(); ++i) {
+        if (index_remap[i] == -2) continue;
+        index_remap[i] = j;
+        ++j;
+    }
+
+    auto update = [&](Component& c) {
+        if (c.node1 != -1) c.node1 = index_remap[c.node1];
+        if (c.node2 != -1) c.node2 = index_remap[c.node2];
+    };
+
+    for (auto& c : capacitors) update(c);
+    for (auto& c : isources) update(c);
+    for (auto& c : resistors) update(c);
+
+    for (auto& [name, old_index] : node_map) {
+        if (old_index == -1) continue;  // GND stays as -1
+
+        node_map[name] = index_remap[old_index];
+    }
+}
+
 void SpiceParser::gen_mna() {
-    size_t size = node_map.size() - 1;
+    size_t size = 0;
+    for (const auto& [name, index] : node_map) {
+        // Count only non-removed nodes
+        if (index >= 0) ++size;
+    }
 
     C = std::vector<float>(size, 0);
     b = std::vector<std::unique_ptr<TimeFunction>>(size);

@@ -46,6 +46,7 @@ class SpiceParser {
     std::string print_node;
 
     void parse_file(std::string filepath);
+    void reduce_nodes();
     void gen_mna();
 
    public:
