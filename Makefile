@@ -3,7 +3,7 @@
 CXX = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra -fopenmp -Iexternal -O3
 
-SRCS = src/cli.cpp src/matrix/csrd_matrix.cpp src/matrix/coo_matrix.cpp src/monte_carlo_ode_solver.cpp src/utils/read_vector.cpp src/spice/spice_parser.cpp src/spice/time_function.cpp
+SRCS = src/cli.cpp src/matrix/csrd_matrix.cpp src/matrix/coo_matrix.cpp src/monte_carlo_ode_solver.cpp src/utils/read_vector.cpp src/spice/spice_parser.cpp src/spice/time_function.cpp src/trapezoidal_ode_solver.cpp
 OBJS = $(SRCS:src/%.cpp=bin/%.o)
 
 # Find all unique directories in src and map them to bin

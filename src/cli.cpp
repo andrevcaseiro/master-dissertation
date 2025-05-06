@@ -17,6 +17,7 @@
 #include "matrix/csrd_matrix.h"
 #include "monte_carlo_ode_solver.h"
 #include "spice/spice_parser.h"
+#include "trapezoidal_ode_solver.h"
 #include "utils/read_vector.h"
 
 /**
@@ -291,6 +292,7 @@ struct SolveSpice {
             std::cout << "time: " << t << std::endl;
             std::cout << "N: " << N << std::endl;
             std::cout << "node: " << node << std::endl;
+            std::cout << "row: " << row << std::endl;
 
             std::cout << "C:" << std::endl;
             for (auto it : C) {
@@ -443,6 +445,198 @@ struct SolveSpice {
 };
 
 /**
+ * @brief A struct defining the general case ODE solver command
+ */
+struct SolveTrapezoidal {
+    std::string spice_filename;
+    std::string res_filename;
+    size_t N;
+    std::string node;
+    float t;
+    std::string dc_solver;
+    std::string dc_preconditioner;
+    bool verbose;
+
+    SolveTrapezoidal(CLI::App& app)
+        : res_filename(""),
+          N(0),
+          node("-"),
+          t(0),
+          dc_solver("ConjugateGradient"),
+          dc_preconditioner("DiagonalPreconditioner"),
+          verbose(false) {
+        auto cmd = app.add_subcommand(
+            "solve-trap",
+            "Solve transient analysis from a spice file using trapezoidal integration.");
+
+        cmd->add_option("spice-file", spice_filename, "Filename")->required();
+        cmd->add_option("-r,--res-file", res_filename, "Filename of vector with expected result");
+
+        cmd->add_option("N", N, "Splitting parameter (0 to read from file)")->capture_default_str();
+        cmd->add_option("node", node, "Solution node (- to read from file)")->capture_default_str();
+        cmd->add_option("t", t, "Solution time (-1 to read from  file)")->capture_default_str();
+
+        std::vector<std::string> valid_dc_solvers = {"SimplicialLLT", "SimplicialLDLT", "SparseLU",
+                                                     "ConjugateGradient"};
+        cmd->add_option("--dc-solver", dc_solver, "Sparse linear system solver for DC analysis")
+            ->capture_default_str()
+            ->check(CLI::IsMember(valid_dc_solvers));
+        std::vector<std::string> valid_preconditioners = {
+            "IdentityPreconditioner", "DiagonalPreconditioner", "IncompleteCholesky"};
+        cmd->add_option("--dc-preconditioner", dc_preconditioner,
+                        "Preconditioner for DC analysis\n(has no effect if dc-solver is not "
+                        "ConjugateGradient)")
+            ->capture_default_str()
+            ->check(CLI::IsMember(valid_preconditioners));
+
+        cmd->add_flag("-v,--verbose", verbose, "Print matrices and vectors")->capture_default_str();
+
+        cmd->callback([this]() { execute(); });
+    }
+
+    void execute() {
+        SpiceParser sp(spice_filename);
+        auto& C = sp.get_C();
+        CSRMatrix<float>& G = sp.get_G();
+        auto& b = sp.get_b();
+
+        if (t == 0) t = sp.get_time();
+        if (N == 0) N = sp.get_time() / sp.get_timestep();
+        if (node == "-") node = sp.get_print_node();
+
+        size_t row = node.empty() ? 0 : sp.get_node_index(node);
+
+        /* Print initial matrices */
+        if (verbose) {
+            std::cout << "time: " << t << std::endl;
+            std::cout << "N: " << N << std::endl;
+            std::cout << "node: " << node << std::endl;
+            std::cout << "row: " << row << std::endl;
+
+            std::cout << "C:" << std::endl;
+            for (auto it : C) {
+                std::cout << it << std::endl;
+            }
+
+            std::cout << std::endl << "G:" << std::endl;
+            G.print();
+
+            std::cout << std::endl << "Bu:" << std::endl;
+            for (const auto& it : b) {
+                std::cout << it->to_string() << std::endl;
+            }
+        }
+
+        std::vector<Eigen::Triplet<float>> triplets;
+        triplets.reserve(G.nnz());  // If you know or can estimate it
+
+        for (size_t row = 0; row < G.rows(); ++row) {
+            for (auto entry : G.row(row)) {
+                triplets.emplace_back(entry.row(), entry.column(), entry.value());
+            }
+        }
+
+        Eigen::SparseMatrix<float> eigen_G(G.rows(), G.columns());
+        eigen_G.setFromTriplets(triplets.begin(), triplets.end());
+
+        Eigen::VectorXf eigen_b(b.size());
+        for (size_t i = 0; i < b.size(); ++i) {
+            eigen_b(i) = (*b[i])(0);
+        }
+
+        Eigen::VectorXf x;
+
+        double initial_time = -omp_get_wtime();
+        if (dc_solver == "ConjugateGradient") {
+            Eigen::ConjugateGradient<Eigen::SparseMatrix<float>, Eigen::Lower | Eigen::Upper,
+                                     Eigen::SimplicialCholesky<Eigen::SparseMatrix<float>>>
+                eigen_solver;
+
+            // TODO eigen_solver.setMaxIterations();
+            x = eigen_solver.compute(eigen_G).solve(eigen_b);
+            if (eigen_solver.info() != Eigen::Success) {
+                std::cout << "DC analysis failed with code " << eigen_solver.info() << std::endl;
+                return;
+            }
+        } else if (dc_solver == "SimplicialLLT") {
+            Eigen::SimplicialLLT<Eigen::SparseMatrix<float>> eigen_solver;
+
+            x = eigen_solver.compute(eigen_G).solve(eigen_b);
+            if (eigen_solver.info() != Eigen::Success) {
+                std::cout << "DC analysis failed with code " << eigen_solver.info() << std::endl;
+                return;
+            }
+        } else if (dc_solver == "SimplicialLDLT") {
+            Eigen::SimplicialLDLT<Eigen::SparseMatrix<float>> eigen_solver;
+
+            x = eigen_solver.compute(eigen_G).solve(eigen_b);
+            if (eigen_solver.info() != Eigen::Success) {
+                std::cout << "DC analysis failed with code " << eigen_solver.info() << std::endl;
+                return;
+            }
+        } else if (dc_solver == "SparseLU") {
+            Eigen::SparseLU<Eigen::SparseMatrix<float>> eigen_solver;
+
+            eigen_solver.compute(eigen_G);
+            x = eigen_solver.solve(eigen_b);
+            if (eigen_solver.info() != Eigen::Success) {
+                std::cout << "DC analysis failed with code " << eigen_solver.info() << std::endl;
+                return;
+            }
+        } else {
+            // Unreachable
+            return;
+        }
+
+        std::vector<float> x_0(C.size(), 0);
+        for (size_t i = 0; i < b.size(); ++i) {
+            x_0[i] = x[i];
+        }
+
+        initial_time += omp_get_wtime();
+        if (verbose) {
+            std::cout << std::endl << "Initial Transient Solution:" << std::endl;
+            for (auto v : x_0) {
+                std::cout << std::defaultfloat;
+                std::cout << v << std::endl;
+            }
+        }
+
+        /* Compute A = -C^-1 G and b = C^-1 Bu */
+        for (size_t i = 0; i < C.size(); ++i) {
+            float c = C[i];
+            c = c != 0 ? 1 / c : 1;
+
+            eigen_G.row(i) *= -c;
+
+            *b[i] *= c;
+        }
+
+        /* Print final matrices */
+        if (verbose) {
+            std::cout << std::endl << "A:" << std::endl;
+            std::cout << Eigen::MatrixXf(eigen_G) << std::endl;
+
+            std::cout << std::endl << "Bu:" << std::endl;
+            for (const auto& it : b) {
+                std::cout << it->to_string() << std::endl;
+            }
+        }
+
+        TrapezoidalODESolver solver(eigen_G, b, x_0, t, row, N);
+
+        std::vector<float> res = solver.solve_sequence();
+
+        float delta_t = t / (res.size() - 1);
+
+        for (size_t i = 0; i < res.size(); i++) {
+            std::cout << std::scientific << std::setprecision(6) << delta_t * i << " "
+                      << std::scientific << std::setprecision(7) << res[i] << std::endl;
+        }
+    }
+};
+
+/**
  * @brief Entry point, defines parses CLI arguments and executes command
  *
  * @param argc number of arguments
@@ -456,6 +650,7 @@ int main(int argc, char** argv) {
     SolveSequence solveSequenceCmd{app};
     ExpM expmCmd{app};
     SolveSpice solveSpiceCmd{app};
+    SolveTrapezoidal solveTrapezoidal{app};
 
     CLI11_PARSE(app, argc, argv);
     return 0;
