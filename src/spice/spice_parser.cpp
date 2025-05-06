@@ -181,11 +181,11 @@ void SpiceParser::reduce_nodes() {
                 b = r.node1;
             }
 
-            if (shared_node) {
+            if (shared_node && shared_node.value() >= 0) {
                 float current = v.value / r.value;
                 std::string iname = "I_" + v.name + "_" + r.name;
 
-                isources.emplace_back(iname, a, b, current);
+                isources.emplace_back(iname, b, a, current);
 
                 r.node1 = a;
                 r.node2 = b;
