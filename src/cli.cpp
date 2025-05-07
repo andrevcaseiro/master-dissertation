@@ -300,7 +300,11 @@ struct SolveSpice {
             }
 
             std::cout << std::endl << "G:" << std::endl;
-            G.print();
+            if (G.columns() < 100) {
+                G.print();
+            } else {
+                std::cout << "Matrix of size " << G.columns() << std::endl;
+            }
 
             std::cout << std::endl << "Bu:" << std::endl;
             for (const auto& it : b) {
@@ -391,10 +395,12 @@ struct SolveSpice {
         }
 
         if (verbose) {
+            auto names = sp.get_node_names();
+
             std::cout << std::endl << "Initial Transient Solution:" << std::endl;
-            for (auto v : x_0) {
-                std::cout << std::defaultfloat;
-                std::cout << v << std::endl;
+            for (size_t i = 0; i < x_0.size(); ++i) {
+                std::cout << names[i].get() << " ";
+                std::cout << std::defaultfloat << x_0[i] << std::endl;
             }
         }
 
@@ -413,7 +419,11 @@ struct SolveSpice {
         /* Print final matrices */
         if (verbose) {
             std::cout << std::endl << "A:" << std::endl;
-            G.print();
+            if (G.columns() < 100) {
+                G.print();
+            } else {
+                std::cout << "Matrix of size " << G.columns() << std::endl;
+            }
 
             std::cout << std::endl << "Bu:" << std::endl;
             for (const auto& it : b) {
