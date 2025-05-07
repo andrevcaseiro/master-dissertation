@@ -290,8 +290,8 @@ void SpiceParser::gen_mna() {
                 b[c.node1] =
                     *b[c.node1] + PulseFunction(-p.v1, -p.v2, p.td, p.tr, p.tf, p.pw, p.per);
         } else {
-            if (c.node2 >= 0) *b[c.node2] += c.value;
-            if (c.node1 >= 0) *b[c.node1] += -c.value;
+            if (c.node2 >= 0) *b[c.node2] += -c.value;
+            if (c.node1 >= 0) *b[c.node1] += c.value;
         }
     }
 
@@ -303,4 +303,16 @@ int SpiceParser::get_node_index(const std::string& node) {
         node_map[node] = node_map.size() - 1;  // Assign a new index, GND is -1
     }
     return node_map[node];
+}
+
+std::vector<std::reference_wrapper<const std::string>> SpiceParser::get_node_names() {
+    // Dummy is used as initialization, but the entire vector will be replaced
+    std::string dummy = "";
+    std::vector<std::reference_wrapper<const std::string>> node_names(b.size(), dummy);
+    for (auto& [name, index] : node_map) {
+        if (index >= 0) {  // Include only non-removed nodes
+            node_names[index] = std::ref(name);
+        }
+    }
+    return node_names;
 }

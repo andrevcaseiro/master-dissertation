@@ -1,8 +1,8 @@
 #pragma once
 
 #include <cmath>
-#include <optional>
 #include <list>
+#include <optional>
 #include <string>
 #include <unordered_map>
 
@@ -59,4 +59,5 @@ class SpiceParser {
     float get_timestep() { return timestep; }
     float get_time() { return time; }
     std::string get_print_node() { return print_node; }
+    std::vector<std::reference_wrapper<const std::string>> get_node_names();
 };
