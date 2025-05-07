@@ -236,7 +236,7 @@ struct SolveSpice {
           node("-"),
           t(0),
           seed(-1),
-          dc_solver("ConjugateGradient"),
+          dc_solver("SparseLU"),
           dc_preconditioner("DiagonalPreconditioner"),
           output_freq(1),
           solve_sequence(false),
@@ -252,8 +252,7 @@ struct SolveSpice {
         cmd->add_option("t", t, "Solution time (-1 to read from  file)")->capture_default_str();
         cmd->add_option("seed", seed, "Seed (-1 for random)")->capture_default_str();
 
-        std::vector<std::string> valid_dc_solvers = {"SimplicialLLT", "SimplicialLDLT", "SparseLU",
-                                                     "ConjugateGradient"};
+        std::vector<std::string> valid_dc_solvers = {"SparseLU", "ConjugateGradient"};
         cmd->add_option("--dc-solver", dc_solver, "Sparse linear system solver for DC analysis")
             ->capture_default_str()
             ->check(CLI::IsMember(valid_dc_solvers));
@@ -351,22 +350,6 @@ struct SolveSpice {
                 std::cout << std::setw(20) << std::left << "DC analysis error:" << std::setw(20)
                           << std::right << std::fixed << std::setprecision(9)
                           << eigen_solver.error() << std::endl;
-            }
-        } else if (dc_solver == "SimplicialLLT") {
-            Eigen::SimplicialLLT<Eigen::SparseMatrix<float>> eigen_solver;
-
-            x = eigen_solver.compute(eigen_G).solve(eigen_b);
-            if (eigen_solver.info() != Eigen::Success) {
-                std::cout << "DC analysis failed with code " << eigen_solver.info() << std::endl;
-                return;
-            }
-        } else if (dc_solver == "SimplicialLDLT") {
-            Eigen::SimplicialLDLT<Eigen::SparseMatrix<float>> eigen_solver;
-
-            x = eigen_solver.compute(eigen_G).solve(eigen_b);
-            if (eigen_solver.info() != Eigen::Success) {
-                std::cout << "DC analysis failed with code " << eigen_solver.info() << std::endl;
-                return;
             }
         } else if (dc_solver == "SparseLU") {
             Eigen::SparseLU<Eigen::SparseMatrix<float>> eigen_solver;
@@ -472,7 +455,7 @@ struct SolveTrapezoidal {
           N(0),
           node("-"),
           t(0),
-          dc_solver("ConjugateGradient"),
+          dc_solver("SparseLU"),
           dc_preconditioner("DiagonalPreconditioner"),
           verbose(false) {
         auto cmd = app.add_subcommand(
@@ -486,8 +469,7 @@ struct SolveTrapezoidal {
         cmd->add_option("node", node, "Solution node (- to read from file)")->capture_default_str();
         cmd->add_option("t", t, "Solution time (-1 to read from  file)")->capture_default_str();
 
-        std::vector<std::string> valid_dc_solvers = {"SimplicialLLT", "SimplicialLDLT", "SparseLU",
-                                                     "ConjugateGradient"};
+        std::vector<std::string> valid_dc_solvers = {"SparseLU", "ConjugateGradient"};
         cmd->add_option("--dc-solver", dc_solver, "Sparse linear system solver for DC analysis")
             ->capture_default_str()
             ->check(CLI::IsMember(valid_dc_solvers));
@@ -563,22 +545,6 @@ struct SolveTrapezoidal {
                 eigen_solver;
 
             // TODO eigen_solver.setMaxIterations();
-            x = eigen_solver.compute(eigen_G).solve(eigen_b);
-            if (eigen_solver.info() != Eigen::Success) {
-                std::cout << "DC analysis failed with code " << eigen_solver.info() << std::endl;
-                return;
-            }
-        } else if (dc_solver == "SimplicialLLT") {
-            Eigen::SimplicialLLT<Eigen::SparseMatrix<float>> eigen_solver;
-
-            x = eigen_solver.compute(eigen_G).solve(eigen_b);
-            if (eigen_solver.info() != Eigen::Success) {
-                std::cout << "DC analysis failed with code " << eigen_solver.info() << std::endl;
-                return;
-            }
-        } else if (dc_solver == "SimplicialLDLT") {
-            Eigen::SimplicialLDLT<Eigen::SparseMatrix<float>> eigen_solver;
-
             x = eigen_solver.compute(eigen_G).solve(eigen_b);
             if (eigen_solver.info() != Eigen::Success) {
                 std::cout << "DC analysis failed with code " << eigen_solver.info() << std::endl;
