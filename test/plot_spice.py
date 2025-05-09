@@ -26,7 +26,7 @@ for line in result.stdout.splitlines():
 spice_df = pd.DataFrame(spice_data, columns=["index", "time", "voltage"])
 
 # Run and parse Trap
-cmd = ['./main', 'solve-trap', filename, '0', '-', '0', '--dc-solver', 'SparseLU']
+cmd = ['./main', 'solve-trap', filename, '0', '-', '0', '--dc-solver', 'zero']
 result = subprocess.run(cmd, capture_output=True, text=True)
 
 data = []
@@ -40,7 +40,7 @@ for line in result.stdout.splitlines():
 trap_df = pd.DataFrame(data, columns=["time", "voltage"])
 
 # Run and parse Monte Carlo tool
-cmd = ['./main', 'solve-spice', filename, '10000', '10000', '-', '0', '-s', '--output-freq', '100', '--dc-solver', 'SparseLU']
+cmd = ['./main', 'solve-spice', filename, '10000', '10000', '-', '0', '-s', '--output-freq', '100', '--dc-solver', 'zero']
 result = subprocess.run(cmd, capture_output=True, text=True)
 
 data = []
@@ -60,7 +60,6 @@ df["expected"] = np.interp(df['time'], spice_df['time'], spice_df['voltage'])
 df['abs_error'] = np.abs(df['voltage'] - df['expected'])
 df['squared_error'] = (df['voltage'] - df['expected']) ** 2
 
-# Optional: summary metrics
 mae = df['abs_error'].mean()
 mse = df['squared_error'].mean()
 rmse = np.sqrt(mse)
@@ -71,11 +70,11 @@ print(f"MAE:  {mae:.4f}\nMSE:  {mse:.4f}\nRMSE: {rmse:.4f}")
 
 fig, ax = plt.subplots()
 
+from plot_expected import df as pythondf
+ax.plot(pythondf['time'], pythondf['v(v5)'], label='Python', color="yellow", linewidth=1)
 ax.plot(trap_df['time'], trap_df['voltage'], label='Trap', color="red", linewidth=2)
 ax.plot(df['time'], df['expected'], label='NgSpice', color="orange", linewidth=2)
 ax.plot(df['time'], df['voltage'], label='Monte Carlo', color="steelblue", linewidth=2)
-#from plot_expected import df as pythondf
-#ax.plot(pythondf['time'], pythondf['v(v5)'], label='Python', color="steelblue", linewidth=2)
 
 #ax.fill_between(df['time'],df['expected'], df['voltage'], color='gray', alpha=0.3, label='Error band')
 max_error_idx = df['abs_error'].idxmax()

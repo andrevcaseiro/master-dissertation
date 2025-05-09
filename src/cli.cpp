@@ -252,7 +252,7 @@ struct SolveSpice {
         cmd->add_option("t", t, "Solution time (-1 to read from  file)")->capture_default_str();
         cmd->add_option("seed", seed, "Seed (-1 for random)")->capture_default_str();
 
-        std::vector<std::string> valid_dc_solvers = {"SparseLU", "ConjugateGradient"};
+        std::vector<std::string> valid_dc_solvers = {"SparseLU", "ConjugateGradient", "zero"};
         cmd->add_option("--dc-solver", dc_solver, "Sparse linear system solver for DC analysis")
             ->capture_default_str()
             ->check(CLI::IsMember(valid_dc_solvers));
@@ -360,6 +360,8 @@ struct SolveSpice {
                 std::cout << "DC analysis failed with code " << eigen_solver.info() << std::endl;
                 return;
             }
+        } else if (dc_solver == "zero") {
+            x = Eigen::VectorXf::Zero(b.size());
         } else {
             // Unreachable
             return;
@@ -469,7 +471,7 @@ struct SolveTrapezoidal {
         cmd->add_option("node", node, "Solution node (- to read from file)")->capture_default_str();
         cmd->add_option("t", t, "Solution time (-1 to read from  file)")->capture_default_str();
 
-        std::vector<std::string> valid_dc_solvers = {"SparseLU", "ConjugateGradient"};
+        std::vector<std::string> valid_dc_solvers = {"SparseLU", "ConjugateGradient", "zero"};
         cmd->add_option("--dc-solver", dc_solver, "Sparse linear system solver for DC analysis")
             ->capture_default_str()
             ->check(CLI::IsMember(valid_dc_solvers));
@@ -559,6 +561,8 @@ struct SolveTrapezoidal {
                 std::cout << "DC analysis failed with code " << eigen_solver.info() << std::endl;
                 return;
             }
+        } else if (dc_solver == "zero") {
+            x = Eigen::VectorXf::Zero(b.size());
         } else {
             // Unreachable
             return;
