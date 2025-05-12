@@ -25,33 +25,25 @@ for line in result.stdout.splitlines():
 
 spice_df = pd.DataFrame(spice_data, columns=["index", "time", "voltage"])
 
-# Run and parse Trap
-cmd = ['./main', 'solve-trap', filename, '0', '-', '0', '--dc-solver', 'zero']
-result = subprocess.run(cmd, capture_output=True, text=True)
+# Run and parse tool
+def run_tool(cmd):
+    cmd = cmd.split()
+    result = subprocess.run(cmd, capture_output=True, text=True)
 
-data = []
-for line in result.stdout.splitlines():
-    parts = line.split()
-    if len(parts) == 2:
-        time = float(parts[0])
-        voltage = float(parts[1])
-        data.append((time, voltage))
+    data = []
+    for line in result.stdout.splitlines():
+        parts = line.split()
+        if len(parts) == 2:
+            time = float(parts[0])
+            voltage = float(parts[1])
+            data.append((time, voltage))
 
-trap_df = pd.DataFrame(data, columns=["time", "voltage"])
+    return pd.DataFrame(data, columns=["time", "voltage"])
 
-# Run and parse Monte Carlo tool
-cmd = ['./main', 'solve-spice', filename, '10000', '10000', '-', '0', '-s', '--output-freq', '100', '--dc-solver', 'zero']
-result = subprocess.run(cmd, capture_output=True, text=True)
-
-data = []
-for line in result.stdout.splitlines():
-    parts = line.split()
-    if len(parts) == 2:
-        time = float(parts[0])
-        voltage = float(parts[1])
-        data.append((time, voltage))
-
-df = pd.DataFrame(data, columns=["time", "voltage"])
+# Run and parse Trap, and Monte Carlo
+trap_df = run_tool(f"./main solve-trap {filename} 0 - 0 --dc-solver zero")
+df = run_tool(f"./main solve-spice {filename} 10000 10000 - 0 -s --output-freq 100 --dc-solver zero")
+df2 = run_tool(f"./main solve-spice {filename} 10000 10000 - 0 -s --output-freq 100")
 
 # Calculate error
 df["expected"] = np.interp(df['time'], spice_df['time'], spice_df['voltage'])
@@ -70,11 +62,12 @@ print(f"MAE:  {mae:.4f}\nMSE:  {mse:.4f}\nRMSE: {rmse:.4f}")
 
 fig, ax = plt.subplots()
 
-from plot_expected import df as pythondf
-ax.plot(pythondf['time'], pythondf['v(v5)'], label='Python', color="yellow", linewidth=1)
-ax.plot(trap_df['time'], trap_df['voltage'], label='Trap', color="red", linewidth=2)
-ax.plot(df['time'], df['expected'], label='NgSpice', color="orange", linewidth=2)
+#from plot_expected import df as pythondf
+#ax.plot(pythondf['time'], pythondf['v(v5)'], label='Python', color="yellow", linewidth=16)
+ax.plot(trap_df['time'], trap_df['voltage'], label='Trap', color="red", linewidth=8)
+ax.plot(df['time'], df['expected'], label='NgSpice', color="orange", linewidth=4)
 ax.plot(df['time'], df['voltage'], label='Monte Carlo', color="steelblue", linewidth=2)
+ax.plot(df2['time'], df2['voltage'], label='Monte Carlo2', color="steelblue", linewidth=1)
 
 #ax.fill_between(df['time'],df['expected'], df['voltage'], color='gray', alpha=0.3, label='Error band')
 max_error_idx = df['abs_error'].idxmax()
