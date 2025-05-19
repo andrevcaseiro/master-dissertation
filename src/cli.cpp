@@ -299,7 +299,7 @@ struct SolveSpice {
             }
 
             std::cout << std::endl << "G:" << std::endl;
-            if (G.columns() < 100) {
+            if (G.columns() <= 100) {
                 G.print();
             } else {
                 std::cout << "Matrix of size " << G.columns() << std::endl;
@@ -326,6 +326,13 @@ struct SolveSpice {
         Eigen::VectorXf eigen_b(b.size());
         for (size_t i = 0; i < b.size(); ++i) {
             eigen_b(i) = (*b[i])(0);
+        }
+
+        if (verbose) {
+            if (G.columns() <= 100) {
+                std::cout << "Eigen G:" << std::endl << Eigen::MatrixXf(eigen_G) << std::endl;
+            }
+            std::cout << "Eigen b:" << std::endl << eigen_b << std::endl;
         }
 
         Eigen::VectorXf x;
@@ -380,6 +387,12 @@ struct SolveSpice {
         }
 
         if (verbose) {
+            Eigen::VectorXf residual = eigen_G * x - eigen_b;
+            double residual_norm = residual.norm() / eigen_b.norm();
+            std::cout << std::setw(20) << std::left << "Initial Solution residual norm:" << std::setw(20)
+            << std::right << std::fixed << std::setprecision(9) << residual_norm 
+            << std::endl;
+
             auto names = sp.get_node_names();
 
             std::cout << std::endl << "Initial Transient Solution:" << std::endl;
