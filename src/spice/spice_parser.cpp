@@ -161,34 +161,34 @@ void SpiceParser::reduce_nodes() {
     for (const auto& v : vsources) {
         for (auto& r : resistors) {
             std::optional<int> shared_node;
-            int a = -1, b = -1;
+            int pos = -1, neg = -1;
 
             if (v.node1 == r.node1) {
                 shared_node = v.node1;
-                a = v.node2;
-                b = r.node2;
+                pos = r.node2;
+                neg = v.node2;
             } else if (v.node1 == r.node2) {
                 shared_node = v.node1;
-                a = v.node2;
-                b = r.node1;
+                pos = r.node1;
+                neg = v.node2;
             } else if (v.node2 == r.node1) {
                 shared_node = v.node2;
-                a = v.node1;
-                b = r.node2;
+                pos = v.node1;
+                neg = r.node2;
             } else if (v.node2 == r.node2) {
                 shared_node = v.node2;
-                a = v.node1;
-                b = r.node1;
+                pos = v.node1;
+                neg = r.node1;
             }
 
             if (shared_node && shared_node.value() >= 0) {
                 float current = v.value / r.value;
                 std::string iname = "I_" + v.name + "_" + r.name;
 
-                isources.emplace_back(iname, b, a, current);
+                isources.emplace_back(iname, neg, pos, current);
 
-                r.node1 = a;
-                r.node2 = b;
+                r.node1 = pos;
+                r.node2 = neg;
 
                 index_remap[shared_node.value()] = -2;
             }
@@ -290,8 +290,8 @@ void SpiceParser::gen_mna() {
                 b[c.node1] =
                     *b[c.node1] + PulseFunction(-p.v1, -p.v2, p.td, p.tr, p.tf, p.pw, p.per);
         } else {
-            if (c.node2 >= 0) *b[c.node2] += -c.value;
-            if (c.node1 >= 0) *b[c.node1] += c.value;
+            if (c.node2 >= 0) *b[c.node2] += c.value;
+            if (c.node1 >= 0) *b[c.node1] += -c.value;
         }
     }
 
