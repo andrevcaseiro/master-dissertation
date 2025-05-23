@@ -8,7 +8,8 @@ COOMatrix<T>::COOMatrix(size_t rows, size_t cols) : _rows(rows), _cols(cols) {}
 template <typename T>
 void COOMatrix<T>::insert_or_add(size_t row, size_t col, T value) {
     if (row >= _rows || col >= _cols) {
-        throw std::out_of_range("Index out of bounds");
+        throw std::out_of_range("Index out of bounds: " + std::to_string(row) + ", " +
+                                std::to_string(col));
     }
     Coordinate key = {row, col};
     data[key] += value;
