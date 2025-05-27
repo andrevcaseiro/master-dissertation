@@ -19,6 +19,7 @@
 #include "spice/spice_parser.h"
 #include "trapezoidal_ode_solver.h"
 #include "utils/read_vector.h"
+#include "subcommands/test.h"
 
 /**
  * @brief A struct defining the matrix exponential command
@@ -644,6 +645,7 @@ int main(int argc, char** argv) {
     ExpM expmCmd{app};
     SolveSpice solveSpiceCmd{app};
     SolveTrapezoidal solveTrapezoidal{app};
+    Test test{app};
 
     CLI11_PARSE(app, argc, argv);
     return 0;

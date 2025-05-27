@@ -62,7 +62,7 @@ class MonteCarloODESolver {
      * @param N Number of time steps
      * @return float The calculated value
      */
-    MonteCarloODESolver(CSRMatrix<float>& A, std::vector<float>& b, std::vector<float>& x_0,
+    MonteCarloODESolver(CSRMatrix<float>& A, const std::vector<float>& b, std::vector<float>& x_0,
                         float t, size_t row, size_t M, size_t N, long seed);
 
     /**
@@ -77,7 +77,7 @@ class MonteCarloODESolver {
      * @param N Number of time steps
      * @return float The calculated value
      */
-    MonteCarloODESolver(CSRMatrix<float>& A, std::vector<std::unique_ptr<TimeFunction>>& b,
+    MonteCarloODESolver(CSRMatrix<float>& A, const std::vector<std::unique_ptr<TimeFunction>>& b,
                         std::vector<float>& x_0, float t, size_t row, size_t M, size_t N,
                         long seed);
 

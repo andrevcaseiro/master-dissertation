@@ -192,6 +192,55 @@ CSRMatrix<T> CSRMatrix<T>::from_coo(COOMatrix<T>& coo_matrix) {
 }
 
 template <typename T>
+CSRMatrix<T>::CSRMatrix(const Eigen::SparseMatrix<T>& mat) : _rows(mat.rows()), _columns(mat.cols()) {
+    // Make sure matrix is compressed and in CSR format
+    Eigen::SparseMatrix<T, Eigen::RowMajor> csr = mat;
+    csr.makeCompressed();
+    if (!csr.isCompressed()) {
+        throw std::runtime_error("Failed to compress Eigen matrix");
+    }
+
+    // Allocate space
+    _row_pointers.reserve(_rows + 1);
+    _column_indexes.reserve(csr.nonZeros());
+    _values.reserve(csr.nonZeros());
+
+    // Initialize row pointers
+    _row_pointers.push_back(0);
+
+    // Convert data
+    for (size_t row = 0; row < _rows; ++row) {
+        bool has_diagonal = false;
+        
+        // Always store diagonal first for each row
+        for (typename Eigen::SparseMatrix<T, Eigen::RowMajor>::InnerIterator it(csr, row); it; ++it) {
+            if (it.row() == it.col()) {
+                _column_indexes.push_back(it.col());
+                _values.push_back(it.value());
+                has_diagonal = true;
+                break;
+            }
+        }
+        
+        // Add zero diagonal if none exists
+        if (!has_diagonal) {
+            _column_indexes.push_back(row);
+            _values.push_back(0);
+        }
+
+        // Add non-diagonal elements
+        for (typename Eigen::SparseMatrix<T, Eigen::RowMajor>::InnerIterator it(csr, row); it; ++it) {
+            if (it.row() != it.col()) {
+                _column_indexes.push_back(it.col());
+                _values.push_back(it.value());
+            }
+        }
+
+        _row_pointers.push_back(_values.size());
+    }
+}
+
+template <typename T>
 T& CSRMatrix<T>::at(size_t row, size_t column) {
     if (row == column) {
         return diagonal(row);

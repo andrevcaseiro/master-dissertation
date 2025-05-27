@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <Eigen/Sparse>
 
 #include "coo_matrix.h"
 
@@ -28,6 +29,13 @@ class CSRMatrix {
 
    public:
     CSRMatrix();
+    
+    /**
+     * @brief Construct a new CSRMatrix from an Eigen sparse matrix
+     * 
+     * @param mat Eigen sparse matrix in CSR format
+     */
+    CSRMatrix(const Eigen::SparseMatrix<T>& mat);
 
     /**
      * @brief Construct a new CSRMatrix object

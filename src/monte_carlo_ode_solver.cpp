@@ -48,7 +48,7 @@ int MonteCarloODESolver::w(size_t n) const {
     return 4;
 }
 
-MonteCarloODESolver::MonteCarloODESolver(CSRMatrix<float>& A, std::vector<float>& b,
+MonteCarloODESolver::MonteCarloODESolver(CSRMatrix<float>& A, const std::vector<float>& b,
                                          std::vector<float>& x_0, float t, size_t row, size_t M,
                                          size_t N, long seed)
     : _A(A),
@@ -65,7 +65,7 @@ MonteCarloODESolver::MonteCarloODESolver(CSRMatrix<float>& A, std::vector<float>
 }
 
 MonteCarloODESolver::MonteCarloODESolver(CSRMatrix<float>& A,
-                                         std::vector<std::unique_ptr<TimeFunction>>& b,
+                                         const std::vector<std::unique_ptr<TimeFunction>>& b,
                                          std::vector<float>& x_0, float t, size_t row, size_t M,
                                          size_t N, long seed)
     : _A(A),
@@ -76,8 +76,9 @@ MonteCarloODESolver::MonteCarloODESolver(CSRMatrix<float>& A,
       _N(N),
       _seed(seed >= 0 ? seed : std::random_device{}()),
       _init(false) {
-    for (auto& value : b) {
-        _b.push_back(std::move(value));
+    _b.reserve(b.size());
+    for (const auto& value : b) {
+        _b.push_back(value->clone());
     }
 }
 
