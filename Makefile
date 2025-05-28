@@ -1,10 +1,14 @@
 #!/usr/bin/make -f
 
 CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Wextra -fopenmp -Iexternal -O3
+CXXFLAGS = -std=c++17 -Wall -Wextra -fopenmp -Isrc -Iexternal -O3
+# Add dependency generation flags
+DEPFLAGS = -MMD -MP
 
-SRCS = src/cli.cpp src/matrix/csrd_matrix.cpp src/matrix/coo_matrix.cpp src/monte_carlo_ode_solver.cpp src/utils/read_vector.cpp src/spice/spice_parser.cpp src/spice/time_function.cpp src/trapezoidal_ode_solver.cpp
+# Automatically find all cpp files
+SRCS = $(shell find src -name "*.cpp")
 OBJS = $(SRCS:src/%.cpp=bin/%.o)
+DEPS = $(OBJS:.o=.d)   # Generate dependency files
 
 # Find all unique directories in src and map them to bin
 SRCDIRS = $(sort $(dir $(SRCS)))
@@ -29,10 +33,13 @@ $(TARGET): $(OBJS)
 	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS)
 
 bin/%.o: src/%.cpp | $(OBJDIRS)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
 $(OBJDIRS):
 	mkdir -p $@
+
+# Include generated dependency files
+-include $(DEPS)
 
 $(CLI11_HPP):
 	mkdir -p external
@@ -47,4 +54,4 @@ external/Eigen/.dirstamp:
 
 .PHONY: clean
 clean:
-	rm -f $(TARGET) $(OBJS)
+	rm -f $(TARGET) $(OBJS) $(DEPS)
