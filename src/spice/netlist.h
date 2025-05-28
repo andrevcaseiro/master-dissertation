@@ -64,11 +64,11 @@ class Netlist {
     Netlist(std::string spice_filepath);
 
     /**
-     * @brief Write the netlist as a spice file
+     * @brief Write the netlist representation to an output stream
      *
-     * @param os
+     * @param os output stream to write to
      */
-    void save(std::ostream& os);
+    void write(std::ostream& os) const;
 
     /**
      * @brief Transform the netlist to remove voltage sources

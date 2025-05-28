@@ -12,7 +12,6 @@ struct PairHash {
 
 MNA::MNA(const Netlist& netlist)
     : _size(netlist.nodes_size() - 1), G(_size, _size), C(_size), b(_size) {
-    
     // Initialize b vector with zeros
     for (size_t i = 0; i < _size; ++i) {
         b[i] = std::make_unique<ConstantFunction>(0.0f);

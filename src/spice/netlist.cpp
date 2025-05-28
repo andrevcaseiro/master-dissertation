@@ -178,10 +178,10 @@ Netlist::Netlist(std::string spice_filepath) {
     }
 }
 
-void Netlist::save(std::ostream& os) {
+void Netlist::write(std::ostream& os) const {
     os << title << std::endl;
 
-    auto print_component = [&](Component& c) {
+    auto print_component = [&](const Component& c) {
         os << c.name << " " << (c.node1 >= 0 ? node_names[c.node1].get() : "0") << " "
            << (c.node2 >= 0 ? node_names[c.node2].get() : "0") << " " << c.value;
         if (c.pulse) {
@@ -191,14 +191,14 @@ void Netlist::save(std::ostream& os) {
         os << std::endl;
     };
 
-    for (auto& c : vsources) print_component(c);
-    for (auto& c : isources) print_component(c);
-    for (auto& c : resistors) print_component(c);
-    for (auto& c : capacitors) print_component(c);
+    for (const auto& c : vsources) print_component(c);
+    for (const auto& c : isources) print_component(c);
+    for (const auto& c : resistors) print_component(c);
+    for (const auto& c : capacitors) print_component(c);
 
     os << ".tran " << tstep << " " << tstop << std::endl;
     os << ".print";
-    for (auto& node : print) os << " v(" << node << ")";
+    for (const auto& node : print) os << " v(" << node << ")";
     os << std::endl;
 
     os << ".end" << std::endl;

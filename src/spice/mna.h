@@ -6,7 +6,7 @@
 
 class MNA {
    private:
-   size_t _size;                                    // Number of nodes in the circuit
+    size_t _size;                                    // Number of nodes in the circuit
     Eigen::SparseMatrix<float> G;                    // Conductance matrix
     Eigen::DiagonalMatrix<float, Eigen::Dynamic> C;  // Capacitance matrix
     std::vector<std::unique_ptr<TimeFunction>> b;    // Independent sources vector
