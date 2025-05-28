@@ -19,7 +19,7 @@
 #include "spice/spice_parser.h"
 #include "trapezoidal_ode_solver.h"
 #include "utils/read_vector.h"
-#include "subcommands/test.h"
+#include "subcommands/transient_analysis.h"
 
 /**
  * @brief A struct defining the matrix exponential command
@@ -645,7 +645,9 @@ int main(int argc, char** argv) {
     ExpM expmCmd{app};
     SolveSpice solveSpiceCmd{app};
     SolveTrapezoidal solveTrapezoidal{app};
-    Test test{app};
+    TransientAnalysis tran{app};
+
+    app.require_subcommand(1);  // Require exactly one subcommand
 
     CLI11_PARSE(app, argc, argv);
     return 0;
