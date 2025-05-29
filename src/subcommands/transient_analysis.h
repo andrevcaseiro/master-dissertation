@@ -11,16 +11,13 @@
 
 #pragma once
 
-#include <monte_carlo_ode_solver.h>
-#include <omp.h>
 #include <spice/dc_solver.h>
 #include <spice/mna.h>
 #include <spice/netlist.h>
 #include <spice/ode.h>
 
-#include <iomanip>
-
 #include "common.h"
+#include "trapezoidal_ode_solver.h"
 
 /**
  * @brief A struct defining a testing command
@@ -81,7 +78,8 @@ struct TransientAnalysis {
     }
 
     void print_solver_params(const std::string& node, int mna_index) const {
-        std::cout << "Solving ODE with " << (solver == "monte-carlo" ? "Monte Carlo" : "Trapezoidal") 
+        std::cout << "Solving ODE with "
+                  << (solver == "monte-carlo" ? "Monte Carlo" : "Trapezoidal")
                   << " method:" << std::endl;
         std::cout << "Steps: " << steps << std::endl;
         std::cout << "Time: " << time << std::endl;
@@ -125,18 +123,17 @@ struct TransientAnalysis {
         auto cmd = app.add_subcommand("tran", "Transient analysis on a circuit.");
         cmd->add_option("filepath", filepath, "Path to the SPICE netlist file")->required();
         cmd->add_flag("-v,--verbose", verbose, "Print detailed information");
-        
+
         std::vector<std::string> allowed_solvers = {"monte-carlo", "trapezoidal"};
         cmd->add_option("--solver", solver, "Solver method")
             ->check(CLI::IsMember(allowed_solvers))
             ->capture_default_str();
-            
+
         cmd->add_option("-M,--samples", samples, "Number of Monte Carlo samples")
             ->capture_default_str();
         cmd->add_option("-N,--steps", steps, "Number of time steps")->capture_default_str();
         cmd->add_option("-t,--time", time, "Final time")->capture_default_str();
-        cmd->add_option("-s,--seed", seed, "Random seed (-1 for random)")
-            ->capture_default_str();
+        cmd->add_option("-s,--seed", seed, "Random seed (-1 for random)")->capture_default_str();
         cmd->callback([this]() { execute(); });
     }
 
@@ -198,7 +195,8 @@ struct TransientAnalysis {
 
             // Solve ODE using Monte Carlo method
             start_time = omp_get_wtime();
-            MonteCarloODESolver mc_solver(A_csr, ode.b(), x0_vec, time, mna_index, samples, steps, seed);
+            MonteCarloODESolver mc_solver(A_csr, ode.b(), x0_vec, time, mna_index, samples, steps,
+                                          seed);
             result = mc_solver.solve_sequence();
             print_execution_time("Monte Carlo simulation", start_time);
         } else {
