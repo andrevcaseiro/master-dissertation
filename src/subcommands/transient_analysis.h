@@ -81,11 +81,14 @@ struct TransientAnalysis {
     }
 
     void print_solver_params(const std::string& node, int mna_index) const {
-        std::cout << "Solving ODE with Monte Carlo method:" << std::endl;
-        std::cout << "Samples: " << samples << std::endl;
+        std::cout << "Solving ODE with " << (solver == "monte-carlo" ? "Monte Carlo" : "Trapezoidal") 
+                  << " method:" << std::endl;
         std::cout << "Steps: " << steps << std::endl;
         std::cout << "Time: " << time << std::endl;
-        std::cout << "Seed: " << seed << std::endl;
+        if (solver == "monte-carlo") {
+            std::cout << "Samples: " << samples << std::endl;
+            std::cout << "Seed: " << seed << std::endl;
+        }
         std::cout << "Node: " << node << std::endl;
         std::cout << "MNA index: " << mna_index << std::endl;
         std::cout << std::endl;
@@ -116,16 +119,24 @@ struct TransientAnalysis {
     size_t steps = 0;
     float time = 0;
     long seed = -1;
+    std::string solver = "monte-carlo";
 
     TransientAnalysis(CLI::App& app) {
         auto cmd = app.add_subcommand("tran", "Transient analysis on a circuit.");
         cmd->add_option("filepath", filepath, "Path to the SPICE netlist file")->required();
         cmd->add_flag("-v,--verbose", verbose, "Print detailed information");
+        
+        std::vector<std::string> allowed_solvers = {"monte-carlo", "trapezoidal"};
+        cmd->add_option("--solver", solver, "Solver method")
+            ->check(CLI::IsMember(allowed_solvers))
+            ->capture_default_str();
+            
         cmd->add_option("-M,--samples", samples, "Number of Monte Carlo samples")
             ->capture_default_str();
         cmd->add_option("-N,--steps", steps, "Number of time steps")->capture_default_str();
         cmd->add_option("-t,--time", time, "Final time")->capture_default_str();
-        cmd->add_option("-s,--seed", seed, "Random seed (-1 for random)")->capture_default_str();
+        cmd->add_option("-s,--seed", seed, "Random seed (-1 for random)")
+            ->capture_default_str();
         cmd->callback([this]() { execute(); });
     }
 
@@ -175,17 +186,28 @@ struct TransientAnalysis {
 
         if (verbose) print_solver_params(print_nodes[0], mna_index);
 
-        // Convert to formats and set up solver parameters
-        start_time = omp_get_wtime();
-        CSRMatrix<float> A_csr(ode.A());
+        // Convert initial conditions to vector format
         std::vector<float> x0_vec(x0.data(), x0.data() + x0.size());
-        print_execution_time("CSR conversion", start_time);
 
-        // Solve ODE using Monte Carlo method
-        start_time = omp_get_wtime();
-        MonteCarloODESolver solver(A_csr, ode.b(), x0_vec, time, mna_index, samples, steps, seed);
-        auto result = solver.solve_sequence();
-        print_execution_time("Monte Carlo simulation", start_time);
+        std::vector<float> result;
+        if (solver == "monte-carlo") {
+            // Convert to CSR format for Monte Carlo solver
+            start_time = omp_get_wtime();
+            CSRMatrix<float> A_csr(ode.A());
+            print_execution_time("CSR conversion", start_time);
+
+            // Solve ODE using Monte Carlo method
+            start_time = omp_get_wtime();
+            MonteCarloODESolver mc_solver(A_csr, ode.b(), x0_vec, time, mna_index, samples, steps, seed);
+            result = mc_solver.solve_sequence();
+            print_execution_time("Monte Carlo simulation", start_time);
+        } else {
+            // Solve ODE using Trapezoidal method
+            start_time = omp_get_wtime();
+            TrapezoidalODESolver trap_solver(ode.A(), ode.b(), x0_vec, time, mna_index, steps);
+            result = trap_solver.solve_sequence();
+            print_execution_time("Trapezoidal simulation", start_time);
+        }
 
         print_results(result);
     }

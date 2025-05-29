@@ -1,15 +1,15 @@
 #include "trapezoidal_ode_solver.h"
 
-TrapezoidalODESolver::TrapezoidalODESolver(Eigen::SparseMatrix<float>& A,
-                                           std::vector<std::unique_ptr<TimeFunction>>& b,
-                                           std::vector<float>& x_0, float t, size_t row, size_t N)
+TrapezoidalODESolver::TrapezoidalODESolver(const Eigen::SparseMatrix<float>& A,
+                                           const std::vector<std::unique_ptr<TimeFunction>>& b,
+                                           const std::vector<float>& x_0, float t, size_t row, size_t N)
     : _A(A), _b(b), _x_0(x_0), _t(t), _row(row), _N(N) {}
 
 std::vector<float> TrapezoidalODESolver::solve_sequence() {
     size_t dim = _x_0.size();
     float dt = _t / static_cast<float>(_N);
 
-    Eigen::VectorXf x = Eigen::Map<Eigen::VectorXf>(_x_0.data(), dim);
+    Eigen::VectorXf x(Eigen::Map<const Eigen::VectorXf>(_x_0.data(), dim));
 
     // Initialize result vector with
     std::vector<float> result;
