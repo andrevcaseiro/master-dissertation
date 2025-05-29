@@ -140,33 +140,15 @@ struct TransientAnalysis {
         if (verbose) print_netlist(netlist, false);
         print_execution_time("Netlist processing", start_time);
 
+        // Get the default tstop and tstep from netlist
+        if (time == 0) time = netlist.get_tstop();
+        if (steps == 0) steps = time / netlist.get_tstep();
+
         // Create MNA system
         start_time = omp_get_wtime();
         MNA mna(netlist);
-        if (verbose) print_mna_matrices(mna);
         print_execution_time("MNA creation", start_time);
-
-        // Create ODE system
-        start_time = omp_get_wtime();
-        ODE ode(mna);
-        if (verbose) print_ode_matrices(ode);
-        print_execution_time("ODE creation", start_time);
-
-        // Calculate initial conditions using DC analysis
-        start_time = omp_get_wtime();
-        DCSolver dc(mna);
-        Eigen::VectorXf x0 = dc.solve();
-        std::vector<float> x0_vec(x0.data(), x0.data() + x0.size());
-        if (verbose) print_initial_conditions(x0);
-        print_execution_time("DC analysis", start_time);
-
-        // Convert to CSR format and set up solver parameters
-        start_time = omp_get_wtime();
-        CSRMatrix<float> A_csr(ode.A());
-        print_execution_time("CSR conversion", start_time);
-
-        if (time == 0) time = netlist.get_tstop();
-        if (steps == 0) steps = time / netlist.get_tstep();
+        if (verbose) print_mna_matrices(mna);
 
         // Get the node to analyze from netlist print list
         const auto& print_nodes = netlist.get_print_nodes();
@@ -178,7 +160,26 @@ struct TransientAnalysis {
             throw std::runtime_error("Cannot analyze ground node");
         }
 
+        // Create ODE system
+        start_time = omp_get_wtime();
+        ODE ode(mna);
+        print_execution_time("ODE creation", start_time);
+        if (verbose) print_ode_matrices(ode);
+
+        // Calculate initial conditions using DC analysis
+        start_time = omp_get_wtime();
+        DCSolver dc(mna);
+        Eigen::VectorXf x0 = dc.solve();
+        print_execution_time("DC analysis", start_time);
+        if (verbose) print_initial_conditions(x0);
+
         if (verbose) print_solver_params(print_nodes[0], mna_index);
+
+        // Convert to formats and set up solver parameters
+        start_time = omp_get_wtime();
+        CSRMatrix<float> A_csr(ode.A());
+        std::vector<float> x0_vec(x0.data(), x0.data() + x0.size());
+        print_execution_time("CSR conversion", start_time);
 
         // Solve ODE using Monte Carlo method
         start_time = omp_get_wtime();
