@@ -110,7 +110,7 @@ class Netlist {
      * @param name node name
      * @return int node index
      */
-    int get_node_index(std::string& name) { return node_indexes[name]; }
+    int get_node_index(const std::string& name) const { return node_indexes.at(name); }
 
     /**
      * @brief Get the node name from a node index
@@ -118,7 +118,7 @@ class Netlist {
      * @param index node index
      * @return std::string node name
      */
-    std::string get_node_name(int index) { return node_names[index]; }
+    std::string get_node_name(int index) const { return node_names[index]; }
 
     /**
      * @brief Get the simulation time step
@@ -140,4 +140,11 @@ class Netlist {
      * @return size_t number of nodes
      */
     size_t nodes_size() const { return node_names.size(); }
+
+    /**
+     * @brief Get nodes to print from the .print command
+     *
+     * @return const std::vector<std::string>& list of nodes to print
+     */
+    const std::vector<std::string>& get_print_nodes() const { return print; }
 };

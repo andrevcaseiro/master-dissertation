@@ -6,6 +6,7 @@
 
 class MNA {
    private:
+    const Netlist& _netlist;                         // Reference to the original netlist
     size_t _size;                                    // Number of nodes in the circuit
     Eigen::SparseMatrix<float> G;                    // Conductance matrix
     Eigen::DiagonalMatrix<float, Eigen::Dynamic> C;  // Capacitance matrix
@@ -23,6 +24,9 @@ class MNA {
 
     /* Get the independent sources vector b */
     const std::vector<std::unique_ptr<TimeFunction>>& get_b() const { return b; }
+
+    /* Get MNA index from node name. Returns -1 if node is ground (0) */
+    int get_mna_index(const std::string& node_name) const;
 
     /* Get number of nodes */
     size_t size() const { return _size; }

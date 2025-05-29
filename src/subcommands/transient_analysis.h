@@ -80,12 +80,14 @@ struct TransientAnalysis {
         std::cout << std::endl;
     }
 
-    void print_solver_params() const {
+    void print_solver_params(const std::string& node, int mna_index) const {
         std::cout << "Solving ODE with Monte Carlo method:" << std::endl;
         std::cout << "Samples: " << samples << std::endl;
         std::cout << "Steps: " << steps << std::endl;
         std::cout << "Time: " << time << std::endl;
         std::cout << "Seed: " << seed << std::endl;
+        std::cout << "Node: " << node << std::endl;
+        std::cout << "MNA index: " << mna_index << std::endl;
         std::cout << std::endl;
     }
 
@@ -166,11 +168,21 @@ struct TransientAnalysis {
         if (time == 0) time = netlist.get_tstop();
         if (steps == 0) steps = time / netlist.get_tstep();
 
-        if (verbose) print_solver_params();
+        // Get the node to analyze from netlist print list
+        const auto& print_nodes = netlist.get_print_nodes();
+        if (print_nodes.empty()) {
+            throw std::runtime_error("No print nodes specified in netlist");
+        }
+        int mna_index = mna.get_mna_index(print_nodes[0]);
+        if (mna_index < 0) {
+            throw std::runtime_error("Cannot analyze ground node");
+        }
+
+        if (verbose) print_solver_params(print_nodes[0], mna_index);
 
         // Solve ODE using Monte Carlo method
         start_time = omp_get_wtime();
-        MonteCarloODESolver solver(A_csr, ode.b(), x0_vec, time, 0, samples, steps, seed);
+        MonteCarloODESolver solver(A_csr, ode.b(), x0_vec, time, mna_index, samples, steps, seed);
         auto result = solver.solve_sequence();
         print_execution_time("Monte Carlo simulation", start_time);
 
