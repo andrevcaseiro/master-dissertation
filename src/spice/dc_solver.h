@@ -43,8 +43,8 @@ class DCSolver {
     /**
      * @brief Solve the DC operating point
      * 
-     * @param method Solving method to use (default: LU)
+     * @param method Solving method to use (default: CG)
      * @return Eigen::VectorXf initial node voltages
      */
-    Eigen::VectorXf solve(Method method = Method::LU) const;
+    Eigen::VectorXf solve(Method method = Method::CG) const;
 };

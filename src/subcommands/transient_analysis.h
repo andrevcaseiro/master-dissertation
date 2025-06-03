@@ -115,6 +115,7 @@ struct TransientAnalysis {
     bool verbose = false;
     size_t samples = 1000;
     size_t steps = 0;
+    size_t print_step = 1000;
     float time = 0;
     long seed = -1;
     std::string solver = "monte-carlo";
@@ -134,6 +135,7 @@ struct TransientAnalysis {
         cmd->add_option("-N,--steps", steps, "Number of time steps")->capture_default_str();
         cmd->add_option("-t,--time", time, "Final time")->capture_default_str();
         cmd->add_option("-s,--seed", seed, "Random seed (-1 for random)")->capture_default_str();
+        cmd->add_option("-p,--print-step", print_step, "Print every N-th step")->capture_default_str();
         cmd->callback([this]() { execute(); });
     }
 
@@ -197,7 +199,7 @@ struct TransientAnalysis {
             start_time = omp_get_wtime();
             MonteCarloODESolver mc_solver(A_csr, ode.b(), x0_vec, time, mna_index, samples, steps,
                                           seed);
-            result = mc_solver.solve_sequence();
+            result = mc_solver.solve_sequence(print_step);
             print_execution_time("Monte Carlo simulation", start_time);
         } else {
             // Solve ODE using Trapezoidal method

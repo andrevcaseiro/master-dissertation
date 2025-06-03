@@ -143,6 +143,7 @@ Netlist::Netlist(std::string spice_filepath) {
 
         /* Spice is case insensitive */
         to_lowercase(line);
+        if (line.size() == 0) continue;
 
         switch (line[0]) {
             case 'v': /* Voltage source */
