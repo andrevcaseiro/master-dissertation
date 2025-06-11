@@ -86,6 +86,8 @@ struct TransientAnalysis {
         if (solver == "monte-carlo") {
             std::cout << "Samples: " << samples << std::endl;
             std::cout << "Seed: " << seed << std::endl;
+        } else {
+            std::cout << "Linear solver: " << method << std::endl;
         }
         std::cout << "Node: " << node << std::endl;
         std::cout << "MNA index: " << mna_index << std::endl;
@@ -119,6 +121,7 @@ struct TransientAnalysis {
     float time = 0;
     long seed = -1;
     std::string solver = "monte-carlo";
+    std::string method = "slu";
 
     TransientAnalysis(CLI::App& app) {
         auto cmd = app.add_subcommand("tran", "Transient analysis on a circuit.");
@@ -130,12 +133,18 @@ struct TransientAnalysis {
             ->check(CLI::IsMember(allowed_solvers))
             ->capture_default_str();
 
+        std::vector<std::string> allowed_methods = {"lu", "cg", "slu"};
+        cmd->add_option("--method", method, "Linear solver method for trapezoidal integration")
+            ->check(CLI::IsMember(allowed_methods))
+            ->capture_default_str();
+
         cmd->add_option("-M,--samples", samples, "Number of Monte Carlo samples")
             ->capture_default_str();
         cmd->add_option("-N,--steps", steps, "Number of time steps")->capture_default_str();
         cmd->add_option("-t,--time", time, "Final time")->capture_default_str();
         cmd->add_option("-s,--seed", seed, "Random seed (-1 for random)")->capture_default_str();
-        cmd->add_option("-p,--print-step", print_step, "Print every N-th step")->capture_default_str();
+        cmd->add_option("-p,--print-step", print_step, "Print every N-th step")
+            ->capture_default_str();
         cmd->callback([this]() { execute(); });
     }
 
@@ -205,7 +214,17 @@ struct TransientAnalysis {
             // Solve ODE using Trapezoidal method
             start_time = omp_get_wtime();
             TrapezoidalODESolver trap_solver(ode.A(), ode.b(), x0_vec, time, mna_index, steps);
-            result = trap_solver.solve_sequence();
+
+            // Select solver method
+            TrapezoidalODESolver::Method solve_method;
+            if (method == "lu")
+                solve_method = TrapezoidalODESolver::Method::LU;
+            else if (method == "cg")
+                solve_method = TrapezoidalODESolver::Method::CG;
+            else
+                solve_method = TrapezoidalODESolver::Method::SUPERLU_MT;
+
+            result = trap_solver.solve_sequence(solve_method);
             print_execution_time("Trapezoidal simulation", start_time);
         }
 

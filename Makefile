@@ -2,6 +2,8 @@
 
 CXX = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra -fopenmp -Isrc -Iexternal -O3
+LDFLAGS = -lsuperlu_mt_OPENMP -lblas_OPENMP
+
 # Add dependency generation flags
 DEPFLAGS = -MMD -MP
 
@@ -30,7 +32,7 @@ all: external/Eigen/.dirstamp $(CLI11_HPP) $(TARGET)
 cli: src/cli.cpp
 
 $(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS)
+	$(CXX) -o $(TARGET) $(OBJS) $(CXXFLAGS) $(LDFLAGS)
 
 bin/%.o: src/%.cpp | $(OBJDIRS)
 	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -c $< -o $@
