@@ -16,21 +16,27 @@ class DCSolver {
     const Eigen::SparseMatrix<float>& _G;
     const std::vector<std::unique_ptr<TimeFunction>>& _b;
     size_t _size;
-    
+
     /**
      * @brief Solve using SparseLU decomposition
      */
     Eigen::VectorXf solve_LU() const;
-    
+
     /**
      * @brief Solve using Conjugate Gradient method
      */
     Eigen::VectorXf solve_CG() const;
 
+    /**
+     * @brief Solve using SuperLU_MT
+     */
+    Eigen::VectorXf solver_SLU() const;
+
    public:
     enum class Method {
-        LU,     // Direct solver using LU decomposition
-        CG      // Iterative solver using Conjugate Gradient
+        LU,  // Direct solver using LU decomposition
+        CG,  // Iterative solver using Conjugate Gradient
+        SLU  // Direct solver using super LU
     };
 
     /**
@@ -42,9 +48,9 @@ class DCSolver {
 
     /**
      * @brief Solve the DC operating point
-     * 
+     *
      * @param method Solving method to use (default: CG)
      * @return Eigen::VectorXf initial node voltages
      */
-    Eigen::VectorXf solve(Method method = Method::CG) const;
+    Eigen::VectorXf solve(Method method = Method::SLU) const;
 };

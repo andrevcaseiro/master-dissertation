@@ -69,10 +69,13 @@ struct TransientAnalysis {
         }
     }
 
-    void print_initial_conditions(const Eigen::VectorXf& x0) const {
+    void print_initial_conditions(const Eigen::VectorXf& x0, const MNA& mna) const {
         std::cout << "Initial conditions:\n";
         for (Eigen::Index i = 0; i < x0.size(); i++) {
-            std::cout << i << ": " << x0[i] << std::endl;
+            std::string node_name = mna.get_node_name(i);
+
+            // Format with left-aligned fixed width for node name
+            std::cout << std::setw(12) << std::left << node_name + ": " << x0[i] << std::endl;
         }
         std::cout << std::endl;
     }
@@ -188,9 +191,19 @@ struct TransientAnalysis {
         // Calculate initial conditions using DC analysis
         start_time = omp_get_wtime();
         DCSolver dc(mna);
-        Eigen::VectorXf x0 = dc.solve();
+
+        // Select DC solver method
+        DCSolver::Method dc_method;
+        if (method == "lu")
+            dc_method = DCSolver::Method::LU;
+        else if (method == "cg")
+            dc_method = DCSolver::Method::CG;
+        else
+            dc_method = DCSolver::Method::SLU;
+
+        Eigen::VectorXf x0 = dc.solve(dc_method);
         print_execution_time("DC analysis", start_time);
-        if (verbose) print_initial_conditions(x0);
+        if (verbose) print_initial_conditions(x0, mna);
 
         if (verbose) print_solver_params(print_nodes[0], mna_index);
 

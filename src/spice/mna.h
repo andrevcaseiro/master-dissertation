@@ -28,6 +28,9 @@ class MNA {
     /* Get MNA index from node name. Returns -1 if node is ground (0) */
     int get_mna_index(const std::string& node_name) const;
 
+    /* Get node name from MNA index */
+    std::string get_node_name(int mna_index) const;
+
     /* Get number of nodes */
     size_t size() const { return _size; }
 };

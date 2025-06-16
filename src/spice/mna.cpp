@@ -17,6 +17,17 @@ int MNA::get_mna_index(const std::string& node_name) const {
     return _netlist.get_node_index(node_name) - 1;  // Convert from netlist index to MNA index
 }
 
+std::string MNA::get_node_name(int mna_index) const {
+    // Convert from MNA index to netlist index by adding 1
+    int netlist_index = mna_index + 1;
+    try {
+        return _netlist.get_node_name(netlist_index);
+    } catch (const std::exception&) {
+        // Fallback if node name not found
+        return "node_" + std::to_string(mna_index);
+    }
+}
+
 MNA::MNA(const Netlist& netlist)
     : _netlist(netlist), _size(netlist.nodes_size() - 1), G(_size, _size), C(_size), b(_size) {
     // Initialize b vector with zeros
