@@ -63,8 +63,8 @@ def main():
         # Handle VDD on level 1
         print_to_file("* VDD on all nodes on one side on level 1")
         for i in range(1, args.nx + 1):
-            print_to_file(f"RsrcL1P{i:0{digits}}1 X_nL1P{i:0{digits}}1 nL1P{i:0{digits}}1 2.5e-02")
-            print_to_file(f"VL1P{i:0{digits}}1 X_nL1P{i:0{digits}}1 0 {VDD}")
+            print_to_file(f"RsrcL1P{i:0{digits}}{1:0{digits}} X_nL1P{i:0{digits}}{1:0{digits}} nL1P{i:0{digits}}{1:0{digits}} 2.5e-02")
+            print_to_file(f"VL1P{i:0{digits}}{1:0{digits}} X_nL1P{i:0{digits}}{1:0{digits}} 0 {VDD}")
         print_to_file()
         
         # Add vias between layers if more than one layer
