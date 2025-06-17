@@ -33,7 +33,7 @@ def run_ngspice(circuit):
 
 def run_monte_carlo(circuit, M, N, threads=1):
     """Run Monte Carlo transient analysis and return DataFrame with results and execution time."""
-    cmd = f"./main tran {circuit} -M {M} -N {N} -p 100".split()
+    cmd = f"./main tran {circuit} -M {M} -N {N} -p 500".split()
     
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
@@ -101,9 +101,16 @@ def plot_results(mc_df, trap_df, ref_df, errors, circuit_name):
     """Create comparison plot with error annotation."""
     fig, ax = plt.subplots(figsize=(10, 6))
     
+    # Determine if trapezoidal is being used as reference
+    use_trap_as_ref = ref_df is trap_df
+    
     # Plot all methods
-    ax.plot(trap_df['time'], trap_df['voltage'], 'r-', label='Trapezoidal', linewidth=1)
-    ax.plot(ref_df['time'], ref_df['voltage'], 'g-', label='NgSpice', linewidth=1)
+    if use_trap_as_ref:
+        ax.plot(trap_df['time'], trap_df['voltage'], 'g-', label='Trapezoidal (Reference)', linewidth=1)
+    else:
+        ax.plot(trap_df['time'], trap_df['voltage'], 'r-', label='Trapezoidal', linewidth=1)
+        ax.plot(ref_df['time'], ref_df['voltage'], 'g-', label='NgSpice (Reference)', linewidth=1)
+    
     ax.plot(mc_df['time'], mc_df['voltage'], 'b-', label='Monte Carlo', linewidth=1)
     
     # Find and annotate maximum error
@@ -129,13 +136,13 @@ def plot_results(mc_df, trap_df, ref_df, errors, circuit_name):
     ax.legend()
     
     plt.tight_layout()
-    
 
-    
     # Save plot
     output_dir = Path("test/res")
     output_dir.mkdir(parents=True, exist_ok=True)
-    plt.savefig(output_dir / f"{circuit_name}_comparison.pdf", format="pdf", bbox_inches="tight")
+    use_trap_as_ref = ref_df is trap_df
+    ref_type = "trap_ref" if use_trap_as_ref else "ngspice_ref"
+    plt.savefig(output_dir / f"{circuit_name}_{ref_type}_comparison.pdf", format="pdf", bbox_inches="tight")
 
     # Show plot
     plt.show()
@@ -148,21 +155,31 @@ def main():
     parser.add_argument('--M', type=int, default=1000, help='Number of Monte Carlo iterations')
     parser.add_argument('--N', type=int, default=100000, help='Number of time steps')
     parser.add_argument('--threads', type=int, default=1, help='Number of threads')
+    parser.add_argument('--use-trap-ref', action='store_true', 
+                        help='Use trapezoidal method as reference instead of NgSpice')
     args = parser.parse_args()
     circuit_name = Path(args.circuit).stem
 
     print("Running simulations...")
-    print("1. NgSpice reference...")
-    ref_df = run_ngspice(args.circuit)
-    print(ref_df.head())
+    
+    # Run trapezoidal simulation first
+    print("1. Trapezoidal method...")
+    trap_df, trap_time = run_trapezoidal(args.circuit, args.N, args.threads)
+    print(trap_df.head())
     
     print("2. Monte Carlo method...")
     mc_df, mc_time = run_monte_carlo(args.circuit, args.M, args.N, args.threads)
     print(mc_df.head())
     
-    print("3. Trapezoidal method...")
-    trap_df, trap_time = run_trapezoidal(args.circuit, args.N, args.threads)
-    print(trap_df.head())
+    # Run NgSpice only if not using trapezoidal as reference
+    ref_df = None
+    if not args.use_trap_ref:
+        print("3. NgSpice reference...")
+        ref_df = run_ngspice(args.circuit)
+        print(ref_df.head())
+    else:
+        print("Using Trapezoidal method as reference (skipping NgSpice)")
+        ref_df = trap_df  # Use trapezoidal as reference
     
     print("\nExecution Times:")
     print(f"Monte Carlo:  {mc_time:.4f} s")
@@ -181,7 +198,9 @@ def main():
     
     print("\nGenerating plot...")
     plot_results(mc_df, trap_df, ref_df, errors, circuit_name)
-    print(f"Plot saved as test/res/{circuit_name}_comparison.pdf")
+    use_trap_as_ref = ref_df is trap_df
+    ref_type = "trap_ref" if use_trap_as_ref else "ngspice_ref"
+    print(f"Plot saved as test/res/{circuit_name}_{ref_type}_comparison.pdf")
 
 if __name__ == '__main__':
     main()
