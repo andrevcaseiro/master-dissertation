@@ -10,6 +10,7 @@
  */
 
 #include <CLI11.hpp>
+#include <highfm/core.hpp>
 
 #include "subcommands/expm.h"
 #include "subcommands/solve.h"
@@ -24,6 +25,8 @@
  * @return int exit status
  */
 int main(int argc, char** argv) {
+    HighFM::initialize();
+
     CLI::App app{"A cli tool to solve systems of DAEs."};
 
     Solve solveCmd{app};
@@ -34,5 +37,6 @@ int main(int argc, char** argv) {
     app.require_subcommand(1);  // Require exactly one subcommand
 
     CLI11_PARSE(app, argc, argv);
+    HighFM::terminate();
     return 0;
 }

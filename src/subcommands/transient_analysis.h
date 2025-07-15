@@ -17,6 +17,7 @@
 #include <spice/ode.h>
 
 #include "common.h"
+#include "highfm_ode_solver.h"
 #include "trapezoidal_ode_solver.h"
 
 /**
@@ -81,15 +82,13 @@ struct TransientAnalysis {
     }
 
     void print_solver_params(const std::string& node, int mna_index) const {
-        std::cout << "Solving ODE with "
-                  << (solver == "monte-carlo" ? "Monte Carlo" : "Trapezoidal")
-                  << " method:" << std::endl;
+        std::cout << "Solving ODE with " << solver << " method:" << std::endl;
         std::cout << "Steps: " << steps << std::endl;
         std::cout << "Time: " << time << std::endl;
         if (solver == "monte-carlo") {
             std::cout << "Samples: " << samples << std::endl;
             std::cout << "Seed: " << seed << std::endl;
-        } else {
+        } else if (solver == "trapezoidal") {
             std::cout << "Linear solver: " << method << std::endl;
         }
         std::cout << "Node: " << node << std::endl;
@@ -131,7 +130,7 @@ struct TransientAnalysis {
         cmd->add_option("filepath", filepath, "Path to the SPICE netlist file")->required();
         cmd->add_flag("-v,--verbose", verbose, "Print detailed information");
 
-        std::vector<std::string> allowed_solvers = {"monte-carlo", "trapezoidal"};
+        std::vector<std::string> allowed_solvers = {"monte-carlo", "trapezoidal", "highfm"};
         cmd->add_option("--solver", solver, "Solver method")
             ->check(CLI::IsMember(allowed_solvers))
             ->capture_default_str();
@@ -223,7 +222,7 @@ struct TransientAnalysis {
                                           seed);
             result = mc_solver.solve_sequence(print_step);
             print_execution_time("Monte Carlo simulation", start_time);
-        } else {
+        } else if (solver == "trapezoidal") {
             // Solve ODE using Trapezoidal method
             start_time = omp_get_wtime();
             TrapezoidalODESolver trap_solver(ode.A(), ode.b(), x0_vec, time, mna_index, steps);
@@ -239,6 +238,12 @@ struct TransientAnalysis {
 
             result = trap_solver.solve_sequence(solve_method);
             print_execution_time("Trapezoidal simulation", start_time);
+        } else if (solver == "highfm") {
+            // Solve ODE using HighFM method
+            start_time = omp_get_wtime();
+            HigFMODESolver highfm_solver(ode.A(), ode.b(), x0_vec, time, mna_index, steps);
+            result = highfm_solver.solve_sequence();
+            print_execution_time("HighFM simulation", start_time);
         }
 
         print_results(result);
