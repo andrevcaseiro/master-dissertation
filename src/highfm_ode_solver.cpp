@@ -16,7 +16,6 @@
 #include <fmt/core.h>
 
 #include <Eigen/Sparse>
-#include <highfm/ode-solvers.hpp>  // Methods for solving ODEs
 
 HigFMODESolver::HigFMODESolver(const Eigen::SparseMatrix<float>& A,
                                const std::vector<std::unique_ptr<TimeFunction>>& b,
@@ -36,7 +35,7 @@ std::vector<float> HigFMODESolver::solve_sequence() const {
     result.reserve(_N + 1);
     result.push_back(x(_row));
 
-    Eigen::SparseMatrix<float, Eigen::RowMajor, long> A_csr = _A;
+    Eigen::SparseMatrix<float, Eigen::RowMajor, HighFM::index_t> A_csr = _A;
 
     HighFM::CSRMap<float> A(HighFM::CSRMatrixData<float>{.nrows = static_cast<HighFM::index_t>(dim),
                                                          .ncols = static_cast<HighFM::index_t>(dim),
@@ -50,18 +49,7 @@ std::vector<float> HigFMODESolver::solve_sequence() const {
     LHS = HighFM::Eye<float>() - 0.5f * dt * A;
     RHS_mat = HighFM::Eye<float>() + 0.5f * dt * A;
 
-    /* // Precompute matrices in Eigen first
-    Eigen::SparseMatrix<float> I(dim, dim);
-    I.setIdentity();
-    Eigen::SparseMatrix<float> LHS_eigen = I - 0.5f * dt * _A;
-    Eigen::SparseMatrix<float> RHS_eigen = I + 0.5f * dt * _A;
-
-    // Convert to HighFM format
-    const HighFM::CSRMatrix<float> LHS = convert_eigen_to_highfm_csr(LHS_eigen);
-    const HighFM::CSRMatrix<float> RHS_mat = convert_eigen_to_highfm_csr(RHS_eigen); */
-
     HighFM::Pardiso<float> solver;
-
     solver.factorize(LHS);
 
     float t = 0.0f;

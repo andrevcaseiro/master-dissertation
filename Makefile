@@ -1,12 +1,12 @@
 #!/usr/bin/make -f
 
 CXX = g++
-CXXFLAGS = -std=c++20 -Wall -Wextra -fopenmp -Isrc -Iexternal -Og -g
+CXXFLAGS = -std=c++20 -Wall -Wextra -fopenmp -Isrc -Iexternal -Og -g -march=native
 LDFLAGS = -lsuperlu_mt_OPENMP -lblas_OPENMP -lHighFM -lfmt
 
 # HighFM flags
-CXXFLAGS += -I/home/andre_caseiro/intel/oneapi/2025.2/include -DHIGHFM_WITH_MKL -DHIGHFM_WITH_COMPLEX
-LDFLAGS += -L/home/andre_caseiro/intel/oneapi/2025.2/lib -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -lm -ldl -ltbb
+CXXFLAGS += -I/home/andre_caseiro/intel/oneapi/2025.2/include -m64 -DHIGHFM_WITH_MKL -DHIGHFM_WITH_COMPLEX -DMKL_ILP64
+LDFLAGS += -L/home/andre_caseiro/intel/oneapi/2025.2/lib -lmkl_intel_ilp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -lm -ldl
 
 # Add dependency generation flags
 DEPFLAGS = -MMD -MP
