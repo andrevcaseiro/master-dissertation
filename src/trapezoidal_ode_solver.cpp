@@ -41,7 +41,7 @@ std::vector<float> TrapezoidalODESolver::solve_sequence_LU() const {
 
     // Precompute matrices
     Eigen::SparseMatrix<float> LHS = I - 0.5f * dt * _A;
-    Eigen::SparseMatrix<float> RHS_mat = I + 0.5f * dt * _A;
+    Eigen::SparseMatrix<float, Eigen::RowMajor> RHS_mat = I + 0.5f * dt * _A;
 
     // Solver setup
     Eigen::SparseLU<Eigen::SparseMatrix<float>> solver;
@@ -93,7 +93,7 @@ std::vector<float> TrapezoidalODESolver::solve_sequence_CG() const {
 
     // Precompute matrices
     Eigen::SparseMatrix<float> LHS = I - 0.5f * dt * _A;
-    Eigen::SparseMatrix<float> RHS_mat = I + 0.5f * dt * _A;
+    Eigen::SparseMatrix<float, Eigen::RowMajor> RHS_mat = I + 0.5f * dt * _A;
 
     // Solver setup
     Eigen::ConjugateGradient<Eigen::SparseMatrix<float>> solver;
@@ -147,7 +147,7 @@ std::vector<float> TrapezoidalODESolver::solve_sequence_superlu_mt() const {
 
     // Precompute matrices
     Eigen::SparseMatrix<float> LHS = I - 0.5f * dt * _A;
-    Eigen::SparseMatrix<float> RHS_mat = I + 0.5f * dt * _A;
+    Eigen::SparseMatrix<float, Eigen::RowMajor> RHS_mat = I + 0.5f * dt * _A;
 
     // Solver setup
     SuperLUSolver solver;
