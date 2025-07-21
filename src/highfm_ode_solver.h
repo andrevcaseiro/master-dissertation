@@ -42,4 +42,5 @@ class HigFMODESolver {
                    const std::vector<float>& x_0, float t, size_t row, size_t N);
 
     std::vector<float> solve_sequence() const;
+    std::vector<float> solve_sequence_cg() const;
 };

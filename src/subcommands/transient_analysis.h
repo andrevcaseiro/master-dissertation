@@ -88,7 +88,7 @@ struct TransientAnalysis {
         if (solver == "monte-carlo") {
             std::cout << "Samples: " << samples << std::endl;
             std::cout << "Seed: " << seed << std::endl;
-        } else if (solver == "trapezoidal") {
+        } else if (solver == "trapezoidal" || solver == "highfm") {
             std::cout << "Linear solver: " << method << std::endl;
         }
         std::cout << "Node: " << node << std::endl;
@@ -135,8 +135,8 @@ struct TransientAnalysis {
             ->check(CLI::IsMember(allowed_solvers))
             ->capture_default_str();
 
-        std::vector<std::string> allowed_methods = {"lu", "cg", "slu"};
-        cmd->add_option("--method", method, "Linear solver method for trapezoidal integration")
+        std::vector<std::string> allowed_methods = {"lu", "cg", "slu", "pardiso"};
+        cmd->add_option("--method", method, "Linear solver method for trapezoidal and highfm integration")
             ->check(CLI::IsMember(allowed_methods))
             ->capture_default_str();
 
@@ -197,6 +197,8 @@ struct TransientAnalysis {
             dc_method = DCSolver::Method::LU;
         else if (method == "cg")
             dc_method = DCSolver::Method::CG;
+        else if (method == "pardiso")
+            dc_method = DCSolver::Method::SLU; // Use SLU as fallback for pardiso in DC analysis
         else
             dc_method = DCSolver::Method::SLU;
 
@@ -242,8 +244,14 @@ struct TransientAnalysis {
             // Solve ODE using HighFM method
             start_time = omp_get_wtime();
             HigFMODESolver highfm_solver(ode.A(), ode.b(), x0_vec, time, mna_index, steps);
-            result = highfm_solver.solve_sequence();
-            print_execution_time("HighFM simulation", start_time);
+            
+            if (method == "cg") {
+                result = highfm_solver.solve_sequence_cg();
+                print_execution_time("HighFM CG simulation", start_time);
+            } else {
+                result = highfm_solver.solve_sequence();
+                print_execution_time("HighFM Pardiso simulation", start_time);
+            }
         }
 
         print_results(result);
