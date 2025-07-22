@@ -6,6 +6,7 @@ import random
 import argparse
 from pathlib import Path
 import math
+from tqdm import tqdm
 
 # Voltage values
 VDD = 1.8
@@ -48,17 +49,20 @@ def main():
         print_to_file("* PG sintetica, uniforme \n")
         
         # Generate resistor network for each layer and capacitors
-        for l in range(1, args.nl + 1):
-            for i in range(1, args.nx + 1):
-                for j in range(1, args.ny + 1):
-                    # Capacitors
-                    print_to_file(f"cL{l}P{i:0{digits}}{j:0{digits}} nL{l}P{i:0{digits}}{j:0{digits}} 0 5.37096111111111e-11")
-                    if j < args.ny:  # Vertical resistors
-                        print_to_file(f"rL{l}P{i:0{digits}}{j:0{digits}}{i:0{digits}}{j+1:0{digits}} nL{l}P{i:0{digits}}{j:0{digits}} nL{l}P{i:0{digits}}{j+1:0{digits}} 2.50e-01")
-                    if i < args.nx:  # Horizontal resistors
-                        print_to_file(f"rL{l}P{i:0{digits}}{j:0{digits}}{i+1:0{digits}}{j:0{digits}} nL{l}P{i:0{digits}}{j:0{digits}} nL{l}P{i+1:0{digits}}{j:0{digits}} 2.50e-01")
+        total_elements = args.nl * args.nx * args.ny
+        with tqdm(total=total_elements, desc="Generating grid elements") as pbar:
+            for l in range(1, args.nl + 1):
+                for i in range(1, args.nx + 1):
+                    for j in range(1, args.ny + 1):
+                        # Capacitors
+                        print_to_file(f"cL{l}P{i:0{digits}}{j:0{digits}} nL{l}P{i:0{digits}}{j:0{digits}} 0 5.37096111111111e-11")
+                        if j < args.ny:  # Vertical resistors
+                            print_to_file(f"rL{l}P{i:0{digits}}{j:0{digits}}{i:0{digits}}{j+1:0{digits}} nL{l}P{i:0{digits}}{j:0{digits}} nL{l}P{i:0{digits}}{j+1:0{digits}} 2.50e-01")
+                        if i < args.nx:  # Horizontal resistors
+                            print_to_file(f"rL{l}P{i:0{digits}}{j:0{digits}}{i+1:0{digits}}{j:0{digits}} nL{l}P{i:0{digits}}{j:0{digits}} nL{l}P{i+1:0{digits}}{j:0{digits}} 2.50e-01")
+                        pbar.update(1)
+                    print_to_file()
                 print_to_file()
-            print_to_file()
         
         # Handle VDD on level 1
         print_to_file("* VDD on all nodes on one side on level 1")
@@ -68,17 +72,23 @@ def main():
         print_to_file()
         
         # Add vias between layers if more than one layer
-        vias = ()
+        vias = set()  # Use set for O(1) lookups instead of tuple
         if args.nl > 1:
             print_to_file("* Vias on random nodes on middle of PG")
-            for _ in range(args.num_vias):
-                l1 = random.randint(1, args.nl)
-                l2 = l1 - 1 if l1 == args.nl else l1 + 1
-                x = min(random.randint(2, args.nx + 1), args.nx)
-                y = min(random.randint(2, args.ny + 1), args.ny)
-                if f"{x:0{digits}}/{y:0{digits}}" not in vias:
-                    write_via(print_to_file, l1, l2, x, y, GND, digits)
-                    vias += (f"{x:0{digits}}/{y:0{digits}}", )
+            with tqdm(total=args.num_vias, desc="Generating vias") as pbar:
+                attempts = 0
+                max_attempts = args.num_vias * 20  # Prevent infinite loops
+                while len(vias) < args.num_vias and attempts < max_attempts:
+                    l1 = random.randint(1, args.nl)
+                    l2 = l1 - 1 if l1 == args.nl else l1 + 1
+                    x = random.randint(2, args.nx)
+                    y = random.randint(2, args.ny)
+                    via_key = (x, y)  # Simple position key
+                    if via_key not in vias:
+                        vias.add(via_key)
+                        write_via(print_to_file, l1, l2, x, y, GND, digits)
+                        pbar.update(1)
+                    attempts += 1
         print_to_file()
         
         # Add current sources
@@ -87,11 +97,11 @@ def main():
         print_to_file()
 
         # Add SPICE control statements
-        print_to_file(".tran 1.000000001e-12 1e-8")
+        print_to_file(".tran 1e-12 1e-8")
         
         # Print commands for all nodes on level 1 except VDD nodes
         nodes = [f"v(nL1P{i:0{digits}}{j:0{digits}})" for i in range(1, args.nx + 1) for j in range(2, args.ny + 1)]
-        print_to_file(".print tran " + " ".join(nodes))
+        print_to_file(".print tran " + " ".join(nodes[-1:]))
         
         # Write data command
         print_to_file(".end")
