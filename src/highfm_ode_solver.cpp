@@ -18,6 +18,8 @@
 #include <Eigen/Sparse>
 #include <highfm/linsys/amgcl.hpp>
 
+#include "utils/progress_bar.h"
+
 HigFMODESolver::HigFMODESolver(const Eigen::SparseMatrix<float>& A,
                                const std::vector<std::unique_ptr<TimeFunction>>& b,
                                const std::vector<float>& x_0, float t, size_t row, size_t N)
@@ -57,7 +59,9 @@ std::vector<float> HigFMODESolver::solve_sequence() const {
     HighFM::Vector<float> b_n(dim), b_np1(dim), rhs(dim);
     for (size_t j = 0; j < dim; ++j) b_n(j) = _b[j]->operator()(t);
 
+    ProgressBar bar{"Simulation", _N, 100};
     for (size_t i = 0; i < _N; ++i) {
+        bar.update(i);
         t += dt;
 
         // Evaluate b(t_{n+1})
@@ -73,6 +77,7 @@ std::vector<float> HigFMODESolver::solve_sequence() const {
         result.push_back(x(_row));
         b_n.swap(b_np1);  // Avoid copy, reuse buffer
     }
+    bar.complete();
 
     return result;
 }
@@ -111,7 +116,9 @@ std::vector<float> HigFMODESolver::solve_sequence_cg() const {
     HighFM::Vector<float> b_n(dim), b_np1(dim), rhs(dim);
     for (size_t j = 0; j < dim; ++j) b_n(j) = _b[j]->operator()(t);
 
+    ProgressBar bar{"Simulation", _N, 100};
     for (size_t i = 0; i < _N; ++i) {
+        bar.update(i);
         t += dt;
 
         // Evaluate b(t_{n+1})
@@ -127,6 +134,7 @@ std::vector<float> HigFMODESolver::solve_sequence_cg() const {
         result.push_back(x(_row));
         b_n.swap(b_np1);  // Avoid copy, reuse buffer
     }
+    bar.complete();
 
     return result;
 }

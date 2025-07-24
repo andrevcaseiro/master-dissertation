@@ -19,6 +19,7 @@
 #include <stdexcept>
 
 #include "matrix/csrd_matrix.h"
+#include "utils/progress_bar.h"
 
 template <typename Generator>
 float MonteCarloODESolver::generate_time(Generator& gen, size_t current_state) {
@@ -158,6 +159,10 @@ std::vector<float> MonteCarloODESolver::solve_sequence(size_t output_N) {
     init();
 
     std::vector<float> res(output_size, 0);
+
+    // Progress bar - only master thread updates it
+    ProgressBar progress("MC Samples", _M);
+
 #pragma omp parallel
     {
         /* Constructing one generator per thread generates different results */
@@ -197,6 +202,13 @@ std::vector<float> MonteCarloODESolver::solve_sequence(size_t output_N) {
                     local_res[output_n] += sample / _M;
                 }
             }
+
+            // Only master thread updates progress
+            if (omp_get_thread_num() == 0) {
+                // Estimate progress based on master thread's work
+                size_t estimated_completed = m * omp_get_num_threads();
+                progress.update(estimated_completed);
+            }
         }
 
 #pragma omp critical
@@ -205,6 +217,8 @@ std::vector<float> MonteCarloODESolver::solve_sequence(size_t output_N) {
             res[i] += local_res[i];
         }
     }
+
+    progress.complete();
 
     /* Set res[0] directly to avoid float roundings */
     res[0] = _x_0[_row];

@@ -4,6 +4,7 @@
 #include <Eigen/SparseLU>
 
 #include "super_lu/solver.h"
+#include "utils/progress_bar.h"
 
 TrapezoidalODESolver::TrapezoidalODESolver(const Eigen::SparseMatrix<float>& A,
                                            const std::vector<std::unique_ptr<TimeFunction>>& b,
@@ -54,7 +55,10 @@ std::vector<float> TrapezoidalODESolver::solve_sequence_LU() const {
     Eigen::VectorXf b_n(dim), b_np1(dim);
     for (size_t j = 0; j < dim; ++j) b_n(j) = _b[j]->operator()(t);
 
+    ProgressBar progress("LU Steps", _N);
+
     for (size_t i = 0; i < _N; ++i) {
+        progress.update(i);
         t += dt;
 
         // Evaluate b(t_{n+1})
@@ -72,6 +76,8 @@ std::vector<float> TrapezoidalODESolver::solve_sequence_LU() const {
         result.push_back(x(_row));
         b_n.swap(b_np1);  // Avoid copy, reuse buffer
     }
+    
+    progress.complete();
 
     return result;
 }
@@ -108,7 +114,10 @@ std::vector<float> TrapezoidalODESolver::solve_sequence_CG() const {
     Eigen::VectorXf b_n(dim), b_np1(dim);
     for (size_t j = 0; j < dim; ++j) b_n(j) = _b[j]->operator()(t);
 
+    ProgressBar progress("CG Steps", _N);
+
     for (size_t i = 0; i < _N; ++i) {
+        progress.update(i);
         t += dt;
 
         // Evaluate b(t_{n+1})
@@ -126,6 +135,8 @@ std::vector<float> TrapezoidalODESolver::solve_sequence_CG() const {
         result.push_back(x(_row));
         b_n.swap(b_np1);  // Avoid copy, reuse buffer
     }
+    
+    progress.complete();
 
     return result;
 }
@@ -160,7 +171,10 @@ std::vector<float> TrapezoidalODESolver::solve_sequence_superlu_mt() const {
     Eigen::VectorXf b_n(dim), b_np1(dim);
     for (size_t j = 0; j < dim; ++j) b_n(j) = _b[j]->operator()(t);
 
+    ProgressBar progress("SuperLU Steps", _N);
+
     for (size_t i = 0; i < _N; ++i) {
+        progress.update(i);
         t += dt;
 
         // Evaluate b(t_{n+1})
@@ -178,6 +192,8 @@ std::vector<float> TrapezoidalODESolver::solve_sequence_superlu_mt() const {
         result.push_back(x(_row));
         b_n.swap(b_np1);  // Avoid copy, reuse buffer
     }
+    
+    progress.complete();
 
     return result;
 }

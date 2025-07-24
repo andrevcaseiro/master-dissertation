@@ -1,7 +1,7 @@
 #!/usr/bin/make -f
 
 CXX = g++
-CXXFLAGS = -std=c++20 -Wall -Wextra -fopenmp -Isrc -Iexternal -Og -g -march=native
+CXXFLAGS = -std=c++20 -Wall -Wextra -fopenmp -Isrc -Iexternal -Iexternal/indicators/include -O3 -g -march=native
 LDFLAGS = -lsuperlu_mt_OPENMP -lblas_OPENMP -lHighFM -lfmt
 
 # HighFM flags
@@ -30,8 +30,12 @@ CLI11_URL = https://github.com/CLIUtils/CLI11/releases/download/v2.5.0/CLI11.hpp
 EIGEN_URL = https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.bz2
 EIGEN_ARCHIVE = $(notdir $(EIGEN_URL))
 
+# Progress bar
+INDICATORS_URL = https://github.com/p-ranav/indicators/archive/refs/tags/v2.3.tar.gz
+INDICATORS_ARCHIVE = indicators-2.3.tar.gz
+
 .PHONY: all
-all: external/Eigen/.dirstamp $(CLI11_HPP) $(TARGET)
+all: external/Eigen/.dirstamp external/indicators/.dirstamp $(CLI11_HPP) $(TARGET)
 
 cli: src/cli.cpp
 
@@ -56,6 +60,14 @@ external/Eigen/.dirstamp:
 	wget -O $(EIGEN_ARCHIVE) $(EIGEN_URL)
 	tar --bzip2 -xf $(EIGEN_ARCHIVE) --strip-components=1 -C external eigen-3.4.0/Eigen
 	rm $(EIGEN_ARCHIVE)
+	touch $@
+
+external/indicators/.dirstamp:
+	mkdir -p external
+	wget -O $(INDICATORS_ARCHIVE) $(INDICATORS_URL)
+	mkdir -p external/indicators
+	tar -xzf $(INDICATORS_ARCHIVE) --strip-components=1 -C external/indicators
+	rm $(INDICATORS_ARCHIVE)
 	touch $@
 
 .PHONY: clean
