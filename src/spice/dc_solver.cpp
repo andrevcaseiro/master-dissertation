@@ -3,6 +3,7 @@
 #include <Eigen/IterativeLinearSolvers>
 #include <Eigen/SparseLU>
 #include "../super_lu/solver.h"
+#include "../highfm/pardiso_solver.h"
 
 Eigen::VectorXf DCSolver::solve(Method method) const {
     switch (method) {
@@ -12,6 +13,8 @@ Eigen::VectorXf DCSolver::solve(Method method) const {
             return solve_CG();
         case Method::SLU:
             return solver_SLU();
+        case Method::PARDISO:
+            return solve_PARDISO();
         default:
             throw std::runtime_error("Unknown solver method");
     }
@@ -83,6 +86,28 @@ Eigen::VectorXf DCSolver::solver_SLU() const {
     auto x = solver.solve(b0);
     if (solver.info() != SuperLUSolver::Success) {
         throw std::runtime_error("Failed to solve DC analysis using SuperLU");
+    }
+
+    return x;
+}
+
+Eigen::VectorXf DCSolver::solve_PARDISO() const {
+    // Convert b vector to values at t=0
+    Eigen::VectorXf b0(_size);
+    for (size_t i = 0; i < _size; i++) {
+        b0[i] = _b[i] ? (*_b[i])(0) : 0.0f;
+    }
+
+    // Use HighFM Pardiso to solve the system
+    PardisoSolver solver;
+    PardisoSolver::Status status = solver.compute(_G);
+    if (status != PardisoSolver::Success) {
+        throw std::runtime_error("Failed to decompose G matrix using Pardiso for DC analysis");
+    }
+
+    auto x = solver.solve(b0);
+    if (solver.info() != PardisoSolver::Success) {
+        throw std::runtime_error("Failed to solve DC analysis using Pardiso");
     }
 
     return x;

@@ -136,7 +136,8 @@ struct TransientAnalysis {
             ->capture_default_str();
 
         std::vector<std::string> allowed_methods = {"lu", "cg", "slu", "pardiso"};
-        cmd->add_option("--method", method, "Linear solver method for trapezoidal and highfm integration")
+        cmd->add_option("--method", method,
+                        "Linear solver method for trapezoidal and highfm integration")
             ->check(CLI::IsMember(allowed_methods))
             ->capture_default_str();
 
@@ -198,7 +199,7 @@ struct TransientAnalysis {
         else if (method == "cg")
             dc_method = DCSolver::Method::CG;
         else if (method == "pardiso")
-            dc_method = DCSolver::Method::SLU; // Use SLU as fallback for pardiso in DC analysis
+            dc_method = DCSolver::Method::PARDISO;
         else
             dc_method = DCSolver::Method::SLU;
 
@@ -244,7 +245,7 @@ struct TransientAnalysis {
             // Solve ODE using HighFM method
             start_time = omp_get_wtime();
             HigFMODESolver highfm_solver(ode.A(), ode.b(), x0_vec, time, mna_index, steps);
-            
+
             if (method == "cg") {
                 result = highfm_solver.solve_sequence_cg();
                 print_execution_time("HighFM CG simulation", start_time);

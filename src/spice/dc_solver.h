@@ -32,11 +32,17 @@ class DCSolver {
      */
     Eigen::VectorXf solver_SLU() const;
 
+    /**
+     * @brief Solve using HighFM Pardiso
+     */
+    Eigen::VectorXf solve_PARDISO() const;
+
    public:
     enum class Method {
-        LU,  // Direct solver using LU decomposition
-        CG,  // Iterative solver using Conjugate Gradient
-        SLU  // Direct solver using super LU
+        LU,      // Direct solver using LU decomposition
+        CG,      // Iterative solver using Conjugate Gradient
+        SLU,     // Direct solver using super LU
+        PARDISO  // Direct solver using HighFM Pardiso
     };
 
     /**
@@ -49,8 +55,8 @@ class DCSolver {
     /**
      * @brief Solve the DC operating point
      *
-     * @param method Solving method to use (default: CG)
+     * @param method Solving method to use (default: PARDISO)
      * @return Eigen::VectorXf initial node voltages
      */
-    Eigen::VectorXf solve(Method method = Method::SLU) const;
+    Eigen::VectorXf solve(Method method = Method::PARDISO) const;
 };
