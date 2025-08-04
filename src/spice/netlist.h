@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "time_function.h"
+#include "utils/union_find.h"
 
 /**
  * @brief A class representing a SPICE netlist
@@ -54,6 +55,10 @@ class Netlist {
     void parse_resistor(std::string& line);
     void parse_capacitor(std::string& line);
     void parse_command(std::string& line);
+    
+    void handle_zero_voltage_sources(UnionFind& uf);
+    void handle_nonzero_voltage_sources(UnionFind& uf);
+    void compact_and_update_nodes(UnionFind& uf);
 
    public:
     /**
@@ -75,6 +80,12 @@ class Netlist {
      *
      */
     void remove_voltage_sources();
+
+    /**
+     * @brief Transform the netlist to remove voltage sources (v2 implementation)
+     *
+     */
+    void remove_voltage_sources_v2();
 
     /**
      * @brief Get the vector of voltage sources

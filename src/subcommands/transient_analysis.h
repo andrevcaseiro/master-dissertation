@@ -158,7 +158,7 @@ struct TransientAnalysis {
         start_time = omp_get_wtime();
         Netlist netlist(filepath);
         if (verbose) print_netlist(netlist, true);
-        netlist.remove_voltage_sources();
+        netlist.remove_voltage_sources_v2();
         if (verbose) print_netlist(netlist, false);
         print_execution_time("Netlist processing", start_time);
 

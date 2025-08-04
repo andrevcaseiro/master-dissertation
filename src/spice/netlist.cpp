@@ -4,9 +4,13 @@
 #include <cctype>
 #include <fstream>
 #include <map>
+#include <numeric>
 #include <regex>
 #include <sstream>
 #include <string>
+#include <unordered_map>
+
+#include "utils/union_find.h"
 
 static void to_lowercase(std::string& s) {
     std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::tolower(c); });
@@ -309,4 +313,147 @@ void Netlist::remove_voltage_sources() {
             node_names[new_index] = std::ref(name);
         }
     }
+}
+
+void Netlist::handle_zero_voltage_sources(UnionFind& uf) {
+    // Union nodes connected by zero voltage sources
+    for (const auto& vs : vsources) {
+        if (vs.value == 0) {
+            uf.unite(vs.node1, vs.node2);
+        }
+    }
+}
+
+void Netlist::handle_nonzero_voltage_sources(UnionFind& uf) {
+    // Build a mapping of node -> resistors connected to that node
+    std::unordered_multimap<int, size_t> node_to_resistors;
+    for (size_t i = 0; i < resistors.size(); ++i) {
+        const auto& r = resistors[i];
+        node_to_resistors.emplace(r.node1, i);
+        node_to_resistors.emplace(r.node2, i);
+    }
+
+    for (const auto& vs : vsources) {
+        if (vs.value != 0) {  // Non-zero voltage sources
+
+            // Check resistors connected to vs.node1
+            auto range1 = node_to_resistors.equal_range(vs.node1);
+            auto range2 = node_to_resistors.equal_range(vs.node2);
+
+            // Choose range as one that is not empty and does not refer to ground
+            auto range = range1;
+            if (vs.node1 == 0 || range1.first == range1.second) {
+                // Use range2 if node1 is ground or has no resistors
+                range = range2;
+                if (vs.node2 == 0 || range2.first == range2.second) {
+                    throw std::runtime_error(
+                        "Cannot eliminate voltage source " + vs.name +
+                        ": both nodes are ground or have no connected resistors");
+                }
+            }
+
+            for (auto it = range.first; it != range.second; ++it) {
+                auto& r = resistors[it->second];
+
+                std::optional<int> shared_node;
+                int pos = -1, neg = -1;
+
+                if (vs.node1 == r.node1) {
+                    shared_node = vs.node1;
+                    pos = r.node2;
+                    neg = vs.node2;
+                } else if (vs.node1 == r.node2) {
+                    shared_node = vs.node1;
+                    pos = r.node1;
+                    neg = vs.node2;
+                } else if (vs.node2 == r.node1) {
+                    shared_node = vs.node2;
+                    pos = vs.node1;
+                    neg = r.node2;
+                } else if (vs.node2 == r.node2) {
+                    shared_node = vs.node2;
+                    pos = vs.node1;
+                    neg = r.node1;
+                }
+
+                if (shared_node && shared_node.value() > 0) {
+                    float current = vs.value / r.value;
+                    std::string iname = "I_" + vs.name + "_" + r.name;
+
+                    isources.emplace_back(iname, neg, pos, current);
+
+                    r.node1 = pos;
+                    r.node2 = neg;
+
+                    // Unite the shared node with the "removed" node (at index node_names.size())
+                    uf.unite(shared_node.value(), node_names.size());
+                }
+            }
+        }
+    }
+}
+
+void Netlist::compact_and_update_nodes(UnionFind& uf) {
+    // Get the mapping from UnionFind and create index updates
+    auto index_updates = uf.get_mapping();
+    index_updates.resize(node_names.size());  // Trim the extra element
+    int removed_representative = uf.find(node_names.size());
+
+    // Convert nodes that map to the "removed" node and compact indices in one pass
+    std::map<int, int> new_index_map;
+    size_t count = 0;
+
+    for (auto& update : index_updates) {
+        if (update == removed_representative) {
+            update = -1;
+        } else if (update >= 0) {
+            if (new_index_map.find(update) == new_index_map.end()) {
+                new_index_map[update] = count++;
+            }
+            update = new_index_map[update];
+        }
+    }
+
+    // Update all component nodes
+    auto update_nodes = [&](Component& comp) {
+        comp.node1 = index_updates[comp.node1];
+        comp.node2 = index_updates[comp.node2];
+
+        if (comp.node1 < 0 || comp.node2 < 0 || comp.node1 == comp.node2) {
+            throw std::runtime_error("Component " + comp.name +
+                                     " has invalid nodes after removing voltage sources.");
+        }
+    };
+
+    for (auto& comp : isources) update_nodes(comp);
+    for (auto& comp : resistors) update_nodes(comp);
+    for (auto& comp : capacitors) update_nodes(comp);
+
+    // Update node_indexes and node_names
+    std::string dummy = "";
+    node_names = std::vector<std::reference_wrapper<const std::string>>{count, dummy};
+    for (auto& [name, old_index] : node_indexes) {
+        if (old_index < 0) continue;
+        int new_index = index_updates[old_index];
+
+        node_indexes[name] = new_index;
+        if (new_index >= 0) {
+            node_names[new_index] = std::ref(name);
+        }
+    }
+}
+
+void Netlist::remove_voltage_sources_v2() {
+    UnionFind uf(node_names.size() + 1);  // +1 for the "removed" node
+
+    // Handle zero voltage sources
+    handle_zero_voltage_sources(uf);
+
+    // Handle positive voltage sources
+    handle_nonzero_voltage_sources(uf);
+
+    vsources.clear();
+
+    // Compact indices and update all node references
+    compact_and_update_nodes(uf);
 }
