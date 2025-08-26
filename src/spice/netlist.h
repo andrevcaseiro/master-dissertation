@@ -54,6 +54,7 @@ class Netlist {
     void parse_isource(std::string& line);
     void parse_resistor(std::string& line);
     void parse_capacitor(std::string& line);
+    void parse_inductor(std::string& line);
     void parse_command(std::string& line);
     
     void handle_zero_voltage_sources(UnionFind& uf);

@@ -105,6 +105,25 @@ void Netlist::parse_capacitor(std::string& line) {
     capacitors.emplace_back(name, node1, node2, value);
 }
 
+void Netlist::parse_inductor(std::string& line) {
+    auto tokens = tokenize(line);
+
+    std::string name = std::string(tokens[0]);
+    int node1 = node_index(std::string(tokens[1]));
+    int node2 = node_index(std::string(tokens[2]));
+    float value = std::stof(std::string(tokens[3]));
+
+    // Static variable to track if warning has been shown
+    static bool warning_shown = false;
+    if (!warning_shown) {
+        std::cerr << "warning: inductors are treated as short circuits (0V voltage sources)" << std::endl;
+        warning_shown = true;
+    }
+
+    // Treat inductor as a 0V voltage source
+    vsources.emplace_back(name, node1, node2, 0.0f);
+}
+
 void Netlist::parse_command(std::string& line) {
     auto tokens = tokenize(line);
 
@@ -162,6 +181,9 @@ Netlist::Netlist(std::string spice_filepath) {
             case 'c': /* Capacitor */
                 parse_capacitor(line);
                 break;
+            case 'l': /* Inductor */
+                parse_inductor(line);
+                break;
             case '.': /* Command */
                 parse_command(line);
                 break;
@@ -169,7 +191,7 @@ Netlist::Netlist(std::string spice_filepath) {
             case '*':  /* Comment */
                 break;
             default:
-                std::cerr << spice_filepath << ":" << line << "warning: unknown line" << std::endl
+                std::cerr << spice_filepath << ": warning: unknown line" << std::endl
                           << line << std::endl;
         }
     }
