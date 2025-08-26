@@ -82,15 +82,16 @@ struct TransientAnalysis {
     }
 
     void print_solver_params(const std::string& node, int mna_index) const {
-        std::cout << "Solving ODE with " << solver << " method:" << std::endl;
+        std::cout << "ODE solver: " << solver << std::endl;
         std::cout << "Steps: " << steps << std::endl;
         std::cout << "Time: " << time << std::endl;
         if (solver == "monte-carlo") {
             std::cout << "Samples: " << samples << std::endl;
             std::cout << "Seed: " << seed << std::endl;
-        } else if (solver == "trapezoidal" || solver == "highfm") {
-            std::cout << "Linear solver: " << method << std::endl;
+        } else if (solver == "trapezoidal") {
+            std::cout << "Trapezoidal linear solver: " << method << std::endl;
         }
+        std::cout << "DC solver: " << dc_method << std::endl;
         std::cout << "Node: " << node << std::endl;
         std::cout << "MNA index: " << mna_index << std::endl;
         std::cout << std::endl;
@@ -123,22 +124,28 @@ struct TransientAnalysis {
     float time = 0;
     long seed = -1;
     std::string solver = "monte-carlo";
-    std::string method = "slu";
+    std::string method = "highfm-cg";
+    std::string dc_method = "";
 
     TransientAnalysis(CLI::App& app) {
         auto cmd = app.add_subcommand("tran", "Transient analysis on a circuit.");
         cmd->add_option("filepath", filepath, "Path to the SPICE netlist file")->required();
         cmd->add_flag("-v,--verbose", verbose, "Print detailed information");
 
-        std::vector<std::string> allowed_solvers = {"monte-carlo", "trapezoidal", "highfm"};
+        std::vector<std::string> allowed_solvers = {"monte-carlo", "trapezoidal"};
         cmd->add_option("--solver", solver, "Solver method")
             ->check(CLI::IsMember(allowed_solvers))
             ->capture_default_str();
 
-        std::vector<std::string> allowed_methods = {"lu", "cg", "slu", "pardiso"};
-        cmd->add_option("--method", method,
-                        "Linear solver method for trapezoidal and highfm integration")
+        std::vector<std::string> allowed_methods = {"lu", "cg", "slu", "pardiso", "highfm-cg"};
+        cmd->add_option("--method", method, "Linear solver method for trapezoidal integration")
             ->check(CLI::IsMember(allowed_methods))
+            ->capture_default_str();
+
+        std::vector<std::string> allowed_dc_methods = {"lu", "cg", "slu", "pardiso"};
+        cmd->add_option("--dc-method", dc_method,
+                        "Linear solver method for DC analysis (defaults to method)")
+            ->check(CLI::IsMember(allowed_dc_methods))
             ->capture_default_str();
 
         cmd->add_option("-M,--samples", samples, "Number of Monte Carlo samples")
@@ -146,13 +153,18 @@ struct TransientAnalysis {
         cmd->add_option("-N,--steps", steps, "Number of time steps")->capture_default_str();
         cmd->add_option("-t,--time", time, "Final time")->capture_default_str();
         cmd->add_option("-s,--seed", seed, "Random seed (-1 for random)")->capture_default_str();
-        cmd->add_option("-p,--print-step", print_step, "Print every N-th step")
+        cmd->add_option("-p,--print-step", print_step, "Number of output steps")
             ->capture_default_str();
         cmd->callback([this]() { execute(); });
     }
 
     void execute() {
         double start_time;
+
+        // Override dc_method if not specified
+        if (dc_method.empty()) {
+            dc_method = method;
+        }
 
         // Load and process netlist
         start_time = omp_get_wtime();
@@ -193,17 +205,17 @@ struct TransientAnalysis {
         DCSolver dc(mna);
 
         // Select DC solver method
-        DCSolver::Method dc_method;
-        if (method == "lu")
-            dc_method = DCSolver::Method::LU;
-        else if (method == "cg")
-            dc_method = DCSolver::Method::CG;
-        else if (method == "pardiso")
-            dc_method = DCSolver::Method::PARDISO;
+        DCSolver::Method dc_solver_method;
+        if (dc_method == "lu")
+            dc_solver_method = DCSolver::Method::LU;
+        else if (dc_method == "cg")
+            dc_solver_method = DCSolver::Method::CG;
+        else if (dc_method == "pardiso")
+            dc_solver_method = DCSolver::Method::PARDISO;
         else
-            dc_method = DCSolver::Method::SLU;
+            dc_solver_method = DCSolver::Method::SLU;
 
-        Eigen::VectorXf x0 = dc.solve(dc_method);
+        Eigen::VectorXf x0 = dc.solve(dc_solver_method);
         print_execution_time("DC analysis", start_time);
         if (verbose) print_initial_conditions(x0, mna);
 
@@ -224,36 +236,33 @@ struct TransientAnalysis {
             MonteCarloODESolver mc_solver(A_csr, ode.b(), x0_vec, time, mna_index, samples, steps,
                                           seed);
             result = mc_solver.solve_sequence(print_step);
-            print_execution_time("Monte Carlo simulation", start_time);
         } else if (solver == "trapezoidal") {
-            // Solve ODE using Trapezoidal method
             start_time = omp_get_wtime();
-            TrapezoidalODESolver trap_solver(ode.A(), ode.b(), x0_vec, time, mna_index, steps);
 
-            // Select solver method
-            TrapezoidalODESolver::Method solve_method;
-            if (method == "lu")
-                solve_method = TrapezoidalODESolver::Method::LU;
-            else if (method == "cg")
-                solve_method = TrapezoidalODESolver::Method::CG;
-            else
-                solve_method = TrapezoidalODESolver::Method::SUPERLU_MT;
-
-            result = trap_solver.solve_sequence(solve_method);
-            print_execution_time("Trapezoidal simulation", start_time);
-        } else if (solver == "highfm") {
-            // Solve ODE using HighFM method
-            start_time = omp_get_wtime();
-            HigFMODESolver highfm_solver(ode.A(), ode.b(), x0_vec, time, mna_index, steps);
-
-            if (method == "cg") {
-                result = highfm_solver.solve_sequence_cg();
-                print_execution_time("HighFM CG simulation", start_time);
-            } else {
+            if (method == "pardiso") {
+                // Solve ODE using HighFM with PARDISO method
+                HigFMODESolver highfm_solver(ode.A(), ode.b(), x0_vec, time, mna_index, steps);
                 result = highfm_solver.solve_sequence();
-                print_execution_time("HighFM Pardiso simulation", start_time);
+            } else if (method == "highfm-cg") {
+                // Solve ODE using HighFM with CG method
+                HigFMODESolver highfm_solver(ode.A(), ode.b(), x0_vec, time, mna_index, steps);
+                result = highfm_solver.solve_sequence_cg();
+            } else {
+                // Solve ODE using traditional Trapezoidal method
+                TrapezoidalODESolver trap_solver(ode.A(), ode.b(), x0_vec, time, mna_index, steps);
+
+                // Select solver method
+                TrapezoidalODESolver::Method solve_method;
+                if (method == "lu")
+                    solve_method = TrapezoidalODESolver::Method::LU;
+                else if (method == "cg")
+                    solve_method = TrapezoidalODESolver::Method::CG;
+                else
+                    solve_method = TrapezoidalODESolver::Method::SUPERLU_MT;
+                result = trap_solver.solve_sequence(solve_method);
             }
         }
+        print_execution_time("ODE solver", start_time);
 
         print_results(result);
     }
