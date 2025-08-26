@@ -144,7 +144,7 @@ void Netlist::parse_command(std::string& line) {
     } else if (tokens[0] == ".end") {
         /* Ignore */
     } else {
-        std::cerr << "warning: unknown command: " << std::endl << line << std::endl;
+        std::cerr << "warning: unknown command " << std::endl << line << std::endl;
     }
 }
 
@@ -347,30 +347,34 @@ void Netlist::handle_zero_voltage_sources(UnionFind& uf) {
 }
 
 void Netlist::handle_nonzero_voltage_sources(UnionFind& uf) {
-    // Build a mapping of node -> resistors connected to that node
+    // Build a mapping of representative node -> resistors connected to that node
     std::unordered_multimap<int, size_t> node_to_resistors;
     for (size_t i = 0; i < resistors.size(); ++i) {
         const auto& r = resistors[i];
-        node_to_resistors.emplace(r.node1, i);
-        node_to_resistors.emplace(r.node2, i);
+        int rep1 = uf.find(r.node1);
+        int rep2 = uf.find(r.node2);
+        node_to_resistors.emplace(rep1, i);
+        node_to_resistors.emplace(rep2, i);
     }
 
     for (const auto& vs : vsources) {
         if (vs.value != 0) {  // Non-zero voltage sources
 
-            // Check resistors connected to vs.node1
-            auto range1 = node_to_resistors.equal_range(vs.node1);
-            auto range2 = node_to_resistors.equal_range(vs.node2);
+            // Check resistors connected to representative nodes
+            int rep1 = uf.find(vs.node1);
+            int rep2 = uf.find(vs.node2);
+            auto range1 = node_to_resistors.equal_range(rep1);
+            auto range2 = node_to_resistors.equal_range(rep2);
 
             // Choose range as one that is not empty and does not refer to ground
             auto range = range1;
-            if (vs.node1 == 0 || range1.first == range1.second) {
-                // Use range2 if node1 is ground or has no resistors
+            if (rep1 == 0 || range1.first == range1.second) {
+                // Use range2 if rep1 is ground or has no resistors
                 range = range2;
-                if (vs.node2 == 0 || range2.first == range2.second) {
+                if (rep2 == 0 || range2.first == range2.second) {
                     throw std::runtime_error(
                         "Cannot eliminate voltage source " + vs.name +
-                        ": both nodes are ground or have no connected resistors");
+                        ": both representative nodes are ground or have no connected resistors");
                 }
             }
 
