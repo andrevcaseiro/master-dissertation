@@ -2,8 +2,57 @@
 
 #include <Eigen/IterativeLinearSolvers>
 #include <Eigen/SparseLU>
+#include <iostream>
+#include <iomanip>
 #include "../super_lu/solver.h"
 #include "../highfm/pardiso_solver.h"
+
+Eigen::VectorXf DCSolver::create_b0() const {
+    Eigen::VectorXf b0(_size);
+    for (size_t i = 0; i < _size; i++) {
+        b0[i] = _b[i] ? (*_b[i])(0) : 0.0f;
+    }
+    return b0;
+}
+
+float DCSolver::calculate_residual_error(const Eigen::VectorXf& x) const {
+    // Create fresh b0 vector (solvers may have modified the original)
+    Eigen::VectorXf b0 = create_b0();
+    
+    // Calculate Gx
+    Eigen::VectorXf Gx = _G * x;
+    
+    // Calculate residual: r = Gx - b0
+    Eigen::VectorXf residual = Gx - b0;
+
+    // Print G*x and b0 side by side for comparison
+    std::cout << "\nDC Analysis Verification:" << std::endl;
+    std::cout << std::setw(6) << "Index" << std::setw(15) << "x (solution)" << std::setw(15) << "G*x" 
+              << std::setw(15) << "b0" << std::setw(15) << "Residual" << std::endl;
+    std::cout << std::string(70, '-') << std::endl;
+    
+    for (Eigen::Index i = 0; i < x.size(); i++) {
+        std::cout << std::setw(6) << i 
+                  << std::setw(15) << std::scientific << std::setprecision(6) << x[i]
+                  << std::setw(15) << std::scientific << std::setprecision(6) << Gx[i]
+                  << std::setw(15) << std::scientific << std::setprecision(6) << b0[i]
+                  << std::setw(15) << std::scientific << std::setprecision(6) << residual[i]
+                  << std::endl;
+    }
+    
+    std::cout << std::endl;
+    
+    // Calculate normalized error: ||r|| / ||b0||
+    float residual_norm = residual.norm();
+    float b0_norm = b0.norm();
+    
+    float normalized_error = (b0_norm > 1e-15f) ? residual_norm / b0_norm : residual_norm;
+    
+    std::cout << "DC solver residual error: " << std::scientific << std::setprecision(6) 
+              << normalized_error << std::endl << std::endl;
+    
+    return normalized_error;
+}
 
 Eigen::VectorXf DCSolver::solve(Method method) const {
     switch (method) {
@@ -22,10 +71,7 @@ Eigen::VectorXf DCSolver::solve(Method method) const {
 
 Eigen::VectorXf DCSolver::solve_LU() const {
     // Convert b vector to values at t=0
-    Eigen::VectorXf b0(_size);
-    for (size_t i = 0; i < _size; i++) {
-        b0[i] = _b[i] ? (*_b[i])(0) : 0.0f;
-    }
+    Eigen::VectorXf b0 = create_b0();
 
     // Solve system Gx = b(0)
     Eigen::SparseLU<Eigen::SparseMatrix<float>> solver;
@@ -44,10 +90,7 @@ Eigen::VectorXf DCSolver::solve_LU() const {
 
 Eigen::VectorXf DCSolver::solve_CG() const {
     // Convert b vector to values at t=0
-    Eigen::VectorXf b0(_size);
-    for (size_t i = 0; i < _size; i++) {
-        b0[i] = _b[i] ? (*_b[i])(0) : 0.0f;
-    }
+    Eigen::VectorXf b0 = create_b0();
 
     // Solve system Gx = b(0) using Conjugate Gradient
     Eigen::ConjugateGradient<Eigen::SparseMatrix<float>> solver;
@@ -68,10 +111,7 @@ Eigen::VectorXf DCSolver::solve_CG() const {
 
 Eigen::VectorXf DCSolver::solver_SLU() const {
     // Convert b vector to values at t=0
-    Eigen::VectorXf b0(_size);
-    for (size_t i = 0; i < _size; i++) {
-        b0[i] = _b[i] ? (*_b[i])(0) : 0.0f;
-    }
+    Eigen::VectorXf b0 = create_b0();
 
     // Create a copy of the G matrix for SuperLU
     SuperLUSolver::SparseMatrixType G_copy = _G;
@@ -93,10 +133,7 @@ Eigen::VectorXf DCSolver::solver_SLU() const {
 
 Eigen::VectorXf DCSolver::solve_PARDISO() const {
     // Convert b vector to values at t=0
-    Eigen::VectorXf b0(_size);
-    for (size_t i = 0; i < _size; i++) {
-        b0[i] = _b[i] ? (*_b[i])(0) : 0.0f;
-    }
+    Eigen::VectorXf b0 = create_b0();
 
     // Use HighFM Pardiso to solve the system
     PardisoSolver solver;

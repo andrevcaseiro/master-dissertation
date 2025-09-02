@@ -18,6 +18,16 @@ class DCSolver {
     size_t _size;
 
     /**
+     * @brief Create b vector at t=0
+     */
+    Eigen::VectorXf create_b0() const;
+
+    /**
+     * @brief Calculate normalized residual error ||Gx - b0|| / ||b0||
+     */
+    float calculate_residual_error(const Eigen::VectorXf& x) const;
+
+    /**
      * @brief Solve using SparseLU decomposition
      */
     Eigen::VectorXf solve_LU() const;
