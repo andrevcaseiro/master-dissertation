@@ -16,6 +16,8 @@
 #include <spice/netlist.h>
 #include <spice/ode.h>
 
+#include <fstream>
+
 #include "common.h"
 #include "highfm_ode_solver.h"
 #include "trapezoidal_ode_solver.h"
@@ -115,9 +117,27 @@ struct TransientAnalysis {
                   << std::endl;
     }
 
+    void save_netlist_to_file(const Netlist& netlist, const std::string& filepath,
+                              const std::string& description) const {
+        if (!filepath.empty()) {
+            std::ofstream file(filepath);
+            if (file.is_open()) {
+                netlist.write(file);
+                file.close();
+                std::cout << description << " saved to: " << filepath << std::endl;
+            } else {
+                std::cerr << "Warning: Could not open file " << filepath << " for writing"
+                          << std::endl;
+            }
+        }
+    }
+
    public:
     std::string filepath;
+    std::string save_original_netlist = "";
+    std::string save_reduced_netlist = "";
     bool verbose = false;
+    bool print_initial_conditions_flag = false;
     size_t samples = 1000;
     size_t steps = 0;
     size_t print_step = 1000;
@@ -131,6 +151,13 @@ struct TransientAnalysis {
         auto cmd = app.add_subcommand("tran", "Transient analysis on a circuit.");
         cmd->add_option("filepath", filepath, "Path to the SPICE netlist file")->required();
         cmd->add_flag("-v,--verbose", verbose, "Print detailed information");
+        cmd->add_flag("--print-ic", print_initial_conditions_flag,
+                      "Print initial transient solution");
+
+        cmd->add_option("--save-original", save_original_netlist,
+                        "Path to save the original netlist before processing");
+        cmd->add_option("--save-reduced", save_reduced_netlist,
+                        "Path to save the reduced netlist after processing");
 
         std::vector<std::string> allowed_solvers = {"monte-carlo", "trapezoidal"};
         cmd->add_option("--solver", solver, "Solver method")
@@ -170,8 +197,16 @@ struct TransientAnalysis {
         start_time = omp_get_wtime();
         Netlist netlist(filepath);
         if (verbose) print_netlist(netlist, true);
+
+        // Save original netlist if requested
+        save_netlist_to_file(netlist, save_original_netlist, "Original netlist");
+
         netlist.remove_voltage_sources_v2();
         if (verbose) print_netlist(netlist, false);
+
+        // Save reduced netlist if requested
+        save_netlist_to_file(netlist, save_reduced_netlist, "Reduced netlist");
+
         print_execution_time("Netlist processing", start_time);
 
         // Get the default tstop and tstep from netlist
@@ -217,7 +252,7 @@ struct TransientAnalysis {
 
         Eigen::VectorXf x0 = dc.solve(dc_solver_method);
         print_execution_time("DC analysis", start_time);
-        if (verbose) print_initial_conditions(x0, mna);
+        if (verbose || print_initial_conditions_flag) print_initial_conditions(x0, mna);
 
         if (verbose) print_solver_params(print_nodes[0], mna_index);
 
