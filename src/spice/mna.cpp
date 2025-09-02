@@ -44,14 +44,14 @@ MNA::MNA(const Netlist& netlist)
         auto n1 = r.node1 - 1;
         auto n2 = r.node2 - 1;
 
+        // Diagonal terms
         if (n1 >= 0) {
-            // Connected to ground at node2
             G_entries[{n1, n1}] += g;
         }
         if (n2 >= 0) {
-            // Connected to ground at node2
             G_entries[{n2, n2}] += g;
         }
+        // Off-diagonal terms if none is ground
         if (n1 >= 0 && n2 >= 0) {
             G_entries[{n1, n2}] -= g;
             G_entries[{n2, n1}] -= g;
@@ -97,9 +97,9 @@ MNA::MNA(const Netlist& netlist)
     // Process capacitors
     for (const auto& c : netlist.get_capacitors()) {
         if (c.node1 == 0) {
-            C.diagonal()[c.node2 - 1] = c.value;
+            C.diagonal()[c.node2 - 1] += c.value;
         } else if (c.node2 == 0) {
-            C.diagonal()[c.node1 - 1] = c.value;
+            C.diagonal()[c.node1 - 1] += c.value;
         } else {
             throw std::runtime_error("Capacitors are only supported when connected to GND.");
         }
