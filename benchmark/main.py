@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import os
-import time
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -116,47 +115,46 @@ def plot_speedup_analysis(speedup_df, output_dir):
     plt.show()
     plt.close()
 
-def plot_solution_comparison(ref_df, mc_results, output_dir):
+def plot_voltage_comparison(plot_data, output_dir, filename='voltage_comparison.png', title='Voltage Comparison'):
     """
-    Plot comparison of actual solution data for different parameter combinations.
+    Plot comparison of voltage data from multiple sources.
     
     Args:
-        ref_df (pandas.DataFrame): Reference solution data (already computed)
-        mc_results (dict): Dictionary with (N,M) as key and DataFrame as value
+        plot_data (list): List of dictionaries, each containing:
+            - 'df': DataFrame with time and voltage columns
+            - 'label': Label for the plot legend
+            - 'style': Dictionary with matplotlib plot style parameters (e.g., {'color': 'r', 'linestyle': '--', 'linewidth': 2})
         output_dir (Path): Directory to save plots
+        filename (str): Filename for the saved plot
+        title (str): Title for the plot
     """
-    # Extract N and M values from dictionary keys
-    N_values = sorted(set(key[0] for key in mc_results.keys()))
-    M_values = sorted(set(key[1] for key in mc_results.keys()))
-    
-    min_N, max_N = min(N_values), max(N_values)
-    min_M, max_M = min(M_values), max(M_values)
-    
     plt.figure(figsize=(12, 8))
     
-    # Extract the specific solutions we want to plot
-    best_mc_df = mc_results[(max_N, max_M)]
-    worst_m_df = mc_results[(max_N, min_M)]
-    worst_n_df = mc_results[(min_N, max_M)]
-    
-    # Plot all solutions
-    plt.plot(ref_df['time'], ref_df['voltage'], 'k-', linewidth=2, label='Reference (Trapezoidal)', alpha=0.8)
-    plt.plot(best_mc_df['time'], best_mc_df['voltage'], 'g-', linewidth=1.5, label=f'Best MC (N={max_N}, M={max_M})', alpha=0.7)
-    plt.plot(worst_m_df['time'], worst_m_df['voltage'], 'r--', linewidth=1.5, label=f'Low M (N={max_N}, M={min_M})', alpha=0.7)
-    plt.plot(worst_n_df['time'], worst_n_df['voltage'], 'b:', linewidth=1.5, label=f'Low N (N={min_N}, M={max_M})', alpha=0.7)
+    # Plot all data
+    for data in plot_data:
+        df = data['df']
+        label = data['label']
+        style = data.get('style', {})  # Default to empty dict if no style specified
+        
+        # Set default style parameters if not provided
+        default_style = {'linewidth': 1.5, 'alpha': 0.8}
+        plot_style = {**default_style, **style}
+        
+        plt.plot(df['time'], df['voltage'], label=label, **plot_style)
     
     plt.xlabel('Time (s)')
     plt.ylabel('Voltage (V)')
-    plt.title('Solution Comparison: Effect of N and M Parameters')
+    plt.title(title)
     plt.legend()
     plt.grid(True, alpha=0.3)
-    plt.savefig(output_dir / 'solution_comparison.png', dpi=300, bbox_inches='tight')
+    plt.savefig(output_dir / filename, dpi=300, bbox_inches='tight')
     plt.close()
 
 def main():
     parser = argparse.ArgumentParser(description='Run parameter sweeps for ODE solvers and plot results')
     parser.add_argument('netlist_path', help='Path to the SPICE netlist file')
     parser.add_argument('--output-dir', type=str, help='Directory to save plots (default: benchmark_dir/\{netlist_name\})')
+    parser.add_argument('--include-spice', action='store_true', help='Include SPICE (NGSpice) simulation in comparison plots')
     
     args = parser.parse_args()
     
@@ -167,14 +165,21 @@ def main():
         args.output_dir = os.path.join(script_dir, netlist_name)
 
     # Calculate reference df based on highest values of N and M
-    N_values = [1024 * (2 ** i) for i in range(8)]
+    N_values = [1024 * (2 ** i) for i in range(6)]
     M_values = [1024 * (2 ** i) for i in range(5)]
-    max_N = max(N_values)
-    max_M = max(M_values)
+    min_N, max_N = min(N_values), max(N_values)
+    min_M, max_M = min(M_values), max(M_values)
 
     # Run the simulation with the highest N and M to get the reference data
     # Assuming run_trapezoidal returns a DataFrame with 'time' and 'voltage' columns
     ref_df, _ = run_trapezoidal(args.netlist_path, 0, max_N)
+
+    # Run SPICE simulation if requested
+    spice_df = None
+    if args.include_spice:
+        print("Running SPICE simulation...")
+        spice_df, _ = run_ngspice(args.netlist_path)
+        print(f"SPICE simulation completed. Got {len(spice_df)} data points.")
 
     # Store all Monte Carlo results in a dictionary with (N,M) as key
     mc_results = {}
@@ -233,9 +238,46 @@ def main():
     plot_error_vs_parameter(results_df, 'M', output_dir, " (N fixed at max)")
     plot_exec_time_vs_parameter(results_df, 'M', output_dir, " (N fixed at max)")
 
-    # Plot solution comparison showing actual data
-    plot_solution_comparison(ref_df, mc_results, output_dir)
+    # Prepare plot data
+    plot_data = [
+        {
+            'df': ref_df,
+            'label': 'Reference (Trapezoidal)',
+            'style': {'color': 'k', 'linestyle': '-', 'linewidth': 2}
+        },
+        {
+            'df': mc_results[(max_N, max_M)],
+            'label': f'Best MC (N={max_N}, M={max_M})',
+            'style': {'color': 'g', 'linestyle': '-', 'linewidth': 1.5}
+        },
+        {
+            'df': mc_results[(max_N, min_M)],
+            'label': f'Low M (N={max_N}, M={min_M})',
+            'style': {'color': 'r', 'linestyle': '--', 'linewidth': 1.5}
+        },
+        {
+            'df': mc_results[(min_N, max_M)],
+            'label': f'Low N (N={min_N}, M={max_M})',
+            'style': {'color': 'b', 'linestyle': ':', 'linewidth': 1.5}
+        }
+    ]
     
+    # Add SPICE data if available
+    if spice_df is not None:
+        plot_data.append({
+            'df': spice_df,
+            'label': 'SPICE (NGSpice)',
+            'style': {'color': 'm', 'linestyle': '-', 'linewidth': 2, 'alpha': 0.7}
+        })
+        
+    # Plot solution comparison showing actual data  
+    plot_voltage_comparison(
+        plot_data=plot_data,
+        output_dir=output_dir,
+        filename='solution_comparison.png',
+        title='Solution Comparison: Effect of N and M Parameters'
+    )
+
     # Scalability (speedup) analysis: vary number of threads from 1 to available CPU cores
     max_threads = multiprocessing.cpu_count()
     thread_values = [2 ** i for i in range(int(np.log2(max_threads)) + 1) if 2 ** i <= max_threads]
