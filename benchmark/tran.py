@@ -79,7 +79,7 @@ def run_monte_carlo(netlist_path, final_time, num_steps, num_samples=1000, seed=
         env_vars["OMP_NUM_THREADS"] = str(num_threads)
         threads_str = f"_threads{num_threads}"
     
-    cmd = f"./main tran {netlist_path} --solver monte-carlo -t {final_time} -N {num_steps} -M {num_samples} -s {seed} -p {print_step}"
+    cmd = f"./main tran {netlist_path} --solver monte-carlo --method pardiso -t {final_time} -N {num_steps} -M {num_samples} -s {seed} -p {print_step}"
     
     if verbose:
         cmd += " --verbose"
@@ -111,7 +111,7 @@ def run_monte_carlo(netlist_path, final_time, num_steps, num_samples=1000, seed=
     return pd.DataFrame(data, columns=["time", "voltage"]), exec_time
 
 
-def run_trapezoidal(netlist_path, final_time, num_steps, method="highfm-cg", num_threads=None, verbose=False):
+def run_trapezoidal(netlist_path, final_time, num_steps, method="pardiso", num_threads=None, verbose=False):
     """
     Run transient analysis with Trapezoidal ODE solver.
     

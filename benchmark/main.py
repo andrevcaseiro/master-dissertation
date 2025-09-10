@@ -9,6 +9,66 @@ import multiprocessing
 from tran import run_monte_carlo, run_trapezoidal, run_ngspice
 
 
+def fit_power_law(x, y):
+    """
+    Fit a power law y = k * x^alpha using log-log linear regression.
+    
+    Args:
+        x (array-like): Independent variable
+        y (array-like): Dependent variable
+        
+    Returns:
+        dict: Dictionary containing:
+            - 'k': Multiplicative constant
+            - 'alpha': Power law exponent
+            - 'r_squared': Coefficient of determination
+            - 'residuals': Residuals in linear space
+            - 'log_residuals': Residuals in log space
+            - 'y_fitted': Fitted y values at original x points
+            - 'x_smooth': Smooth x values for plotting
+            - 'y_smooth': Smooth y values for plotting
+    """
+    # Convert to numpy arrays and take logarithms
+    log_x = np.log(x)
+    log_y = np.log(y)
+    
+    # Perform linear regression in log space: log(y) = log(k) + alpha * log(x)
+    A = np.vstack([log_x, np.ones(len(log_x))]).T
+    coeffs, residuals_sum, _, _ = np.linalg.lstsq(A, log_y, rcond=None)
+    
+    alpha = coeffs[0]
+    log_k = coeffs[1]
+    k = np.exp(log_k)
+    
+    # Calculate R-squared
+    y_pred_log = log_k + alpha * log_x
+    ss_res = np.sum((log_y - y_pred_log) ** 2)
+    ss_tot = np.sum((log_y - np.mean(log_y)) ** 2)
+    r_squared = 1 - (ss_res / ss_tot)
+    
+    # Calculate fitted values at original x points
+    y_fitted = k * (x ** alpha)
+    
+    # Calculate residuals in both log and linear space
+    residuals = y - y_fitted
+    log_residuals = log_y - y_pred_log
+    
+    # Generate smooth curve for plotting
+    x_smooth = np.logspace(np.log10(x.min()), np.log10(x.max()), 100)
+    y_smooth = k * (x_smooth ** alpha)
+    
+    return {
+        'k': k,
+        'alpha': alpha,
+        'r_squared': r_squared,
+        'residuals': residuals,
+        'log_residuals': log_residuals,
+        'y_fitted': y_fitted,
+        'x_smooth': x_smooth,
+        'y_smooth': y_smooth
+    }
+
+
 def calculate_errors(df, ref_df):
     """
     Calculate error metrics between simulation results and reference data.
@@ -51,7 +111,7 @@ def calculate_errors(df, ref_df):
 
 def plot_error_vs_parameter(results_df, parameter_name, output_dir, fixed_param_info=""):
     """
-    Plot error metrics vs a parameter (N or M).
+    Plot error metrics vs a parameter (N or M) with power law trendlines.
     
     Args:
         results_df (pandas.DataFrame): Results dataframe with error metrics
@@ -59,10 +119,28 @@ def plot_error_vs_parameter(results_df, parameter_name, output_dir, fixed_param_
         output_dir (Path): Directory to save plots
         fixed_param_info (str): Information about fixed parameter for title
     """
-    plt.figure()
-    plt.plot(results_df[parameter_name], results_df['max_error'], marker='o', label='Max Error')
-    plt.plot(results_df[parameter_name], results_df['avg_error'], marker='x', label='Avg Error')
-    plt.plot(results_df[parameter_name], results_df['rms_error'], marker='s', label='RMS Error')
+    plt.figure(figsize=(10, 8))
+    
+    x = results_df[parameter_name].values
+    
+    # Plot data points
+    plt.plot(x, results_df['max_error'], marker='o', label='Max Error', linewidth=1.5)
+    plt.plot(x, results_df['avg_error'], marker='x', label='Avg Error', linewidth=1.5)
+    plt.plot(x, results_df['rms_error'], marker='s', label='RMS Error', linewidth=1.5)
+    
+    # Fit and plot trendlines for each error type
+    colors = ['C0', 'C1', 'C2']  # Default matplotlib colors
+    error_types = ['max_error', 'avg_error', 'rms_error']
+    error_labels = ['Max Error', 'Avg Error', 'RMS Error']
+    
+    for i, (error_type, error_label, color) in enumerate(zip(error_types, error_labels, colors)):
+        y = results_df[error_type].values
+        fit_result = fit_power_law(x, y)
+        
+        # Plot trendline using pre-calculated smooth values
+        plt.plot(fit_result['x_smooth'], fit_result['y_smooth'], '--', color=color, alpha=0.7, linewidth=2,
+                label=f'{error_label} fit: Error = {fit_result["k"]:.2e} × {parameter_name}^{fit_result["alpha"]:.2f} (R² = {fit_result["r_squared"]:.3f})')
+    
     plt.xscale('log', base=2)
     plt.yscale('log', base=2)
     plt.xlabel(f'{parameter_name} (log₂ scale)')
@@ -70,12 +148,13 @@ def plot_error_vs_parameter(results_df, parameter_name, output_dir, fixed_param_
     plt.title(f'Error vs {parameter_name}{fixed_param_info}')
     plt.legend()
     plt.grid(True, which='both', linestyle='--', alpha=0.7)
+    plt.tight_layout()
     plt.savefig(output_dir / f'error_vs_{parameter_name}.png')
     plt.close()
 
 def plot_exec_time_vs_parameter(results_df, parameter_name, output_dir, fixed_param_info=""):
     """
-    Plot execution time vs a parameter (N or M).
+    Plot execution time vs a parameter (N or M) with power law trendline.
     
     Args:
         results_df (pandas.DataFrame): Results dataframe with execution times
@@ -83,13 +162,28 @@ def plot_exec_time_vs_parameter(results_df, parameter_name, output_dir, fixed_pa
         output_dir (Path): Directory to save plots
         fixed_param_info (str): Information about fixed parameter for title
     """
-    plt.figure()
-    plt.plot(results_df[parameter_name], results_df['exec_time'], marker='o')
+    plt.figure(figsize=(10, 6))
+    
+    x = results_df[parameter_name].values
+    y = results_df['exec_time'].values
+    
+    # Plot data points
+    plt.plot(x, y, marker='o', label='Execution Time', linewidth=1.5, markersize=6)
+    
+    # Fit and plot trendline
+    fit_result = fit_power_law(x, y)
+    
+    # Plot trendline using pre-calculated smooth values
+    plt.plot(fit_result['x_smooth'], fit_result['y_smooth'], '--', color='red', alpha=0.8, linewidth=2,
+            label=f'Power law fit: Time = {fit_result["k"]:.2e} × {parameter_name}^{fit_result["alpha"]:.2f} (R² = {fit_result["r_squared"]:.3f})')
+    
     plt.xscale('log', base=2)
     plt.xlabel(f'{parameter_name} (log₂ scale)')
     plt.ylabel('Execution Time (s)')
     plt.title(f'Execution Time vs {parameter_name}{fixed_param_info}')
+    plt.legend()
     plt.grid(True, which='both', linestyle='--', alpha=0.7)
+    plt.tight_layout()
     plt.savefig(output_dir / f'exec_time_vs_{parameter_name}.png')
     plt.close()
 
