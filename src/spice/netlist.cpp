@@ -3,9 +3,11 @@
 #include <algorithm>
 #include <cctype>
 #include <fstream>
+#include <iostream>
 #include <map>
 #include <numeric>
 #include <regex>
+#include <set>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -111,17 +113,18 @@ void Netlist::parse_inductor(std::string& line) {
     std::string name = std::string(tokens[0]);
     int node1 = node_index(std::string(tokens[1]));
     int node2 = node_index(std::string(tokens[2]));
-    float value = std::stof(std::string(tokens[3]));
+    std::stof(std::string(tokens[3]));
 
     // Static variable to track if warning has been shown
     static bool warning_shown = false;
     if (!warning_shown) {
-        std::cerr << "warning: inductors are treated as short circuits (0V voltage sources)" << std::endl;
+        std::cerr << "warning: inductors are treated as short circuits (0V voltage sources)"
+                  << std::endl;
         warning_shown = true;
     }
 
     // Treat inductor as a 0V voltage source
-    vsources.emplace_back(name, node1, node2, 0.0f);
+    vsources.emplace_back("v_" + name, node1, node2, 0.0f);
 }
 
 void Netlist::parse_command(std::string& line) {
@@ -224,7 +227,7 @@ void Netlist::write(std::ostream& os) const {
     for (const auto& c : capacitors) print_component(c);
 
     os << ".tran " << tstep << " " << tstop << std::endl;
-    os << ".print";
+    os << ".print tran";
     for (const auto& node : print) os << " v(" << node << ")";
     os << std::endl;
 
@@ -281,7 +284,7 @@ void Netlist::remove_voltage_sources() {
 
             if (shared_node && shared_node.value() > 0) {
                 float current = vs.value / r.value;
-                std::string iname = "I_" + vs.name + "_" + r.name;
+                std::string iname = "i_" + vs.name + "_" + r.name;
 
                 isources.emplace_back(iname, neg, pos, current);
 
@@ -346,6 +349,99 @@ void Netlist::handle_zero_voltage_sources(UnionFind& uf) {
     }
 }
 
+void Netlist::handle_capacitors_with_ground_resistors(UnionFind& uf) {
+    // Find the representative of ground node (0)
+    int ground_rep = uf.find(0);
+
+    // Build a mapping of representative node -> resistors connected to that node
+    std::unordered_multimap<int, size_t> node_to_resistors;
+    for (size_t i = 0; i < resistors.size(); ++i) {
+        const auto& r = resistors[i];
+        int rep1 = uf.find(r.node1);
+        int rep2 = uf.find(r.node2);
+        node_to_resistors.emplace(rep1, i);
+        node_to_resistors.emplace(rep2, i);
+    }
+
+    for (auto& cap : capacitors) {
+        int rep1 = uf.find(cap.node1);
+        int rep2 = uf.find(cap.node2);
+
+        // Check if capacitor connects to ground
+        if (rep1 == ground_rep || rep2 == ground_rep) {
+            continue;
+        }
+
+        // Check if capacitor has a neighboring resistor that connects to ground
+        auto range1 = node_to_resistors.equal_range(rep1);
+        auto range2 = node_to_resistors.equal_range(rep2);
+
+        bool has_gnd_resistor = true;
+
+        // Check resistors connected to node1
+        for (auto it = range1.first; it != range1.second; ++it) {
+            const auto& r = resistors[it->second];
+            int r_rep1 = uf.find(r.node1);
+            int r_rep2 = uf.find(r.node2);
+            if (r_rep1 != ground_rep && r_rep2 != ground_rep) {
+                has_gnd_resistor = false;
+                break;
+            }
+        }
+
+        auto gnd_resistor_range = range1;
+        // Check resistors connected to node2 if not already found
+        if (!has_gnd_resistor) {
+            has_gnd_resistor = true;
+
+            for (auto it = range2.first; it != range2.second; ++it) {
+                const auto& r = resistors[it->second];
+                int r_rep1 = uf.find(r.node1);
+                int r_rep2 = uf.find(r.node2);
+                if (r_rep1 != ground_rep && r_rep2 != ground_rep) {
+                    has_gnd_resistor = false;
+                    break;
+                }
+            }
+
+            gnd_resistor_range = range2;
+            if (!has_gnd_resistor) {
+                /* throw std::runtime_error */ std::cerr
+                    << ("Cannot eliminate capacitor " + cap.name +
+                        ": doesn't connect to gnd, and has no connecting resistor connecting to "
+                        "gnd")
+                    << std::endl;
+            }
+        }
+
+        for (auto it = gnd_resistor_range.first; it != gnd_resistor_range.second; ++it) {
+            auto& r = resistors[it->second];
+            int r_rep1 = uf.find(r.node1);
+            int r_rep2 = uf.find(r.node2);
+
+            if (r_rep1 == ground_rep) {
+                // Swap r.node 1
+                if (r_rep2 == rep1) {
+                    r.node1 = rep2;
+                    cap.node2 = ground_rep;
+                } else {
+                    r.node1 = rep1;
+                    cap.node1 = ground_rep;
+                }
+            } else {
+                // Swap r.node 2
+                if (r_rep1 == rep1) {
+                    r.node2 = rep2;
+                    cap.node2 = ground_rep;
+                } else {
+                    r.node2 = rep1;
+                    cap.node1 = ground_rep;
+                }
+            }
+        }
+    }
+}
+
 void Netlist::handle_nonzero_voltage_sources(UnionFind& uf) {
     // Build a mapping of representative node -> resistors connected to that node
     std::unordered_multimap<int, size_t> node_to_resistors;
@@ -356,6 +452,9 @@ void Netlist::handle_nonzero_voltage_sources(UnionFind& uf) {
         node_to_resistors.emplace(rep1, i);
         node_to_resistors.emplace(rep2, i);
     }
+
+    // Find the representative of ground node (0)
+    int ground_rep = uf.find(0);
 
     for (const auto& vs : vsources) {
         if (vs.value != 0) {  // Non-zero voltage sources
@@ -368,10 +467,10 @@ void Netlist::handle_nonzero_voltage_sources(UnionFind& uf) {
 
             // Choose range as one that is not empty and does not refer to ground
             auto range = range1;
-            if (rep1 == 0 || range1.first == range1.second) {
+            if (rep1 == ground_rep || range1.first == range1.second) {
                 // Use range2 if rep1 is ground or has no resistors
                 range = range2;
-                if (rep2 == 0 || range2.first == range2.second) {
+                if (rep2 == ground_rep || range2.first == range2.second) {
                     throw std::runtime_error(
                         "Cannot eliminate voltage source " + vs.name +
                         ": both representative nodes are ground or have no connected resistors");
@@ -429,6 +528,14 @@ void Netlist::compact_and_update_nodes(UnionFind& uf) {
     std::map<int, int> new_index_map;
     size_t count = 0;
 
+    // Ensure ground node representative gets index 0
+    int ground_rep = uf.find(0);
+    if (ground_rep != removed_representative) {
+        new_index_map[ground_rep] = count++;
+    } else {
+        throw std::runtime_error("Ground node was marked to be removed");
+    }
+
     for (auto& update : index_updates) {
         if (update == removed_representative) {
             update = -1;
@@ -458,22 +565,134 @@ void Netlist::compact_and_update_nodes(UnionFind& uf) {
     // Update node_indexes and node_names
     std::string dummy = "";
     node_names = std::vector<std::reference_wrapper<const std::string>>{count, dummy};
+
+    // Handle ground node first to ensure it gets index 0
+    auto ground_it = node_indexes.find("0");
+    node_names[0] = std::ref(ground_it->first);
+
     for (auto& [name, old_index] : node_indexes) {
-        if (old_index < 0) continue;
+        if (old_index <= 0) continue;  // Skip removed nodes and ground
         int new_index = index_updates[old_index];
 
         node_indexes[name] = new_index;
-        if (new_index >= 0) {
+        if (new_index > 0) {
             node_names[new_index] = std::ref(name);
         }
     }
 }
 
-void Netlist::remove_voltage_sources_v2() {
+void Netlist::merge_parallel_components() {
+    // Merge parallel resistors
+    std::vector<Component> merged_resistors;
+    std::map<std::pair<int, int>, std::vector<size_t>> resistor_groups;
+
+    // Group resistors by their node pairs (considering both (a,b) and (b,a) as same)
+    for (size_t i = 0; i < resistors.size(); ++i) {
+        const auto& r = resistors[i];
+        std::pair<int, int> nodes = {std::min(r.node1, r.node2), std::max(r.node1, r.node2)};
+        resistor_groups[nodes].push_back(i);
+    }
+
+    // Merge parallel resistors: 1/R_eq = 1/R1 + 1/R2 + ...
+    for (const auto& [nodes, indices] : resistor_groups) {
+        if (indices.size() == 1) {
+            // Single resistor, keep as is
+            merged_resistors.push_back(resistors[indices[0]]);
+        } else {
+            // Multiple parallel resistors, merge them
+            float inverse_sum = 0.0f;
+            std::string merged_name = "r_merged";
+
+            for (size_t idx : indices) {
+                const auto& r = resistors[idx];
+                inverse_sum += 1.0f / r.value;
+                merged_name += "_" + r.name;
+            }
+
+            float equivalent_resistance = 1.0f / inverse_sum;
+            merged_resistors.emplace_back(merged_name, nodes.first, nodes.second,
+                                          equivalent_resistance);
+        }
+    }
+
+    resistors = std::move(merged_resistors);
+
+    // Merge parallel capacitors
+    std::vector<Component> merged_capacitors;
+    std::map<std::pair<int, int>, std::vector<size_t>> capacitor_groups;
+
+    // Group capacitors by their node pairs (considering both (a,b) and (b,a) as same)
+    for (size_t i = 0; i < capacitors.size(); ++i) {
+        const auto& c = capacitors[i];
+        std::pair<int, int> nodes = {std::min(c.node1, c.node2), std::max(c.node1, c.node2)};
+        capacitor_groups[nodes].push_back(i);
+    }
+
+    // Merge parallel capacitors: C_eq = C1 + C2 + ...
+    for (const auto& [nodes, indices] : capacitor_groups) {
+        if (indices.size() == 1) {
+            // Single capacitor, keep as is
+            merged_capacitors.push_back(capacitors[indices[0]]);
+        } else {
+            // Multiple parallel capacitors, merge them
+            float total_capacitance = 0.0f;
+            std::string merged_name = "c_merged";
+
+            for (size_t idx : indices) {
+                const auto& c = capacitors[idx];
+                total_capacitance += c.value;
+                merged_name += "_" + c.name;
+            }
+
+            merged_capacitors.emplace_back(merged_name, nodes.first, nodes.second,
+                                           total_capacitance);
+        }
+    }
+
+    capacitors = std::move(merged_capacitors);
+}
+
+void Netlist::add_missing_ground_capacitors() {
+    // Calculate average capacitance and find nodes with capacitors in one pass
+    if (capacitors.empty()) {
+        return;  // No capacitors exist, nothing to do
+    }
+
+    float total_capacitance = 0.0f;
+    std::set<int> nodes_with_capacitors;
+
+    for (const auto& cap : capacitors) {
+        total_capacitance += cap.value;
+        nodes_with_capacitors.insert(cap.node1);
+        nodes_with_capacitors.insert(cap.node2);
+    }
+
+    float average_capacitance = total_capacitance / capacitors.size();
+
+    // Find ground node by looking it up in node_indexes
+    int ground_node = node_indexes["0"];
+
+    // Add capacitors to ground for nodes that don't have any capacitors
+    for (int i = 0; i < static_cast<int>(node_names.size()); ++i) {
+        if (i != ground_node && nodes_with_capacitors.find(i) == nodes_with_capacitors.end()) {
+            // This node doesn't have any capacitor connected and is not ground
+            std::string cap_name = "c_gnd_" + std::to_string(i);
+            capacitors.emplace_back(cap_name, i, ground_node, average_capacitance);
+        }
+    }
+}
+
+void Netlist::process_netlist() {
+    // Merge parallel components after voltage source removal
+    merge_parallel_components();
+
     UnionFind uf(node_names.size() + 1);  // +1 for the "removed" node
 
     // Handle zero voltage sources
     handle_zero_voltage_sources(uf);
+
+    // Handle capacitors connecting indirectly to the ground
+    handle_capacitors_with_ground_resistors(uf);
 
     // Handle positive voltage sources
     handle_nonzero_voltage_sources(uf);
@@ -482,4 +701,7 @@ void Netlist::remove_voltage_sources_v2() {
 
     // Compact indices and update all node references
     compact_and_update_nodes(uf);
+
+    // Add missing ground capacitors
+    add_missing_ground_capacitors();
 }

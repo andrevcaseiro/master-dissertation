@@ -3,9 +3,11 @@
 #include <cmath>
 #include <iostream>
 #include <memory>
+#include <vector>
 
 class ConstantFunction;
 class PulseFunction;
+class SumFunction;
 
 /**
  * @brief Abstract base class representing a time-dependent function
@@ -25,6 +27,7 @@ class TimeFunction {
 
     virtual std::unique_ptr<TimeFunction> addTo(const ConstantFunction& constant) const = 0;
     virtual std::unique_ptr<TimeFunction> addTo(const PulseFunction& pulse) const = 0;
+    virtual std::unique_ptr<TimeFunction> addTo(const SumFunction& sum) const = 0;
 
     virtual std::string to_string() const = 0;
 };
@@ -47,6 +50,7 @@ class ConstantFunction : public TimeFunction {
     std::unique_ptr<TimeFunction> operator+(const TimeFunction& other) const override;
     std::unique_ptr<TimeFunction> addTo(const ConstantFunction& constant) const override;
     std::unique_ptr<TimeFunction> addTo(const PulseFunction& pulse) const override;
+    std::unique_ptr<TimeFunction> addTo(const SumFunction& sum) const override;
 
     TimeFunction& operator+=(float v) override;
     TimeFunction& operator*=(float v) override;
@@ -72,6 +76,45 @@ class PulseFunction : public TimeFunction {
     std::unique_ptr<TimeFunction> operator+(const TimeFunction& other) const override;
     std::unique_ptr<TimeFunction> addTo(const ConstantFunction& constant) const override;
     std::unique_ptr<TimeFunction> addTo(const PulseFunction& pulse) const override;
+    std::unique_ptr<TimeFunction> addTo(const SumFunction& sum) const override;
+
+    TimeFunction& operator+=(float v) override;
+    TimeFunction& operator*=(float v) override;
+
+    std::string to_string() const override;
+};
+
+/**
+ * @brief Sum function - represents the sum of multiple time functions
+ *
+ */
+class SumFunction : public TimeFunction {
+   private:
+    std::vector<std::unique_ptr<TimeFunction>> functions;
+
+   public:
+    SumFunction() = default;
+
+    // Constructor that takes a list of functions
+    SumFunction(std::vector<std::unique_ptr<TimeFunction>> funcs) : functions(std::move(funcs)) {}
+
+    // Copy constructor
+    SumFunction(const SumFunction& other);
+
+    // Assignment operator
+    SumFunction& operator=(const SumFunction& other);
+
+    // Add a function to the sum
+    void addFunction(std::unique_ptr<TimeFunction> func);
+
+    float operator()(float t) const override;
+
+    std::unique_ptr<TimeFunction> clone() const override;
+
+    std::unique_ptr<TimeFunction> operator+(const TimeFunction& other) const override;
+    std::unique_ptr<TimeFunction> addTo(const ConstantFunction& constant) const override;
+    std::unique_ptr<TimeFunction> addTo(const PulseFunction& pulse) const override;
+    std::unique_ptr<TimeFunction> addTo(const SumFunction& sum) const override;
 
     TimeFunction& operator+=(float v) override;
     TimeFunction& operator*=(float v) override;

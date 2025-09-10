@@ -201,7 +201,7 @@ struct TransientAnalysis {
         // Save original netlist if requested
         save_netlist_to_file(netlist, save_original_netlist, "Original netlist");
 
-        netlist.remove_voltage_sources_v2();
+        netlist.process_netlist();
         if (verbose) print_netlist(netlist, false);
 
         // Save reduced netlist if requested

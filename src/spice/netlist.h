@@ -56,10 +56,13 @@ class Netlist {
     void parse_capacitor(std::string& line);
     void parse_inductor(std::string& line);
     void parse_command(std::string& line);
-    
+
     void handle_zero_voltage_sources(UnionFind& uf);
     void handle_nonzero_voltage_sources(UnionFind& uf);
+    void handle_capacitors_with_ground_resistors(UnionFind& uf);
     void compact_and_update_nodes(UnionFind& uf);
+    void merge_parallel_components();
+    void add_missing_ground_capacitors();
 
    public:
     /**
@@ -87,6 +90,12 @@ class Netlist {
      *
      */
     void remove_voltage_sources_v2();
+
+    /**
+     * @brief Process the netlist to remove voltage sources and perform other transformations
+     *
+     */
+    void process_netlist();
 
     /**
      * @brief Get the vector of voltage sources
