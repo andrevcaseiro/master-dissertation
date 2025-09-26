@@ -119,19 +119,19 @@ def plot_error_vs_parameter(results_df, parameter_name, output_dir, fixed_param_
         output_dir (Path): Directory to save plots
         fixed_param_info (str): Information about fixed parameter for title
     """
-    plt.figure(figsize=(10, 8))
+    plt.figure(figsize=(5, 4))  # Smaller, more document-friendly size
     
     x = results_df[parameter_name].values
     
     # Plot data points
     plt.plot(x, results_df['max_error'], marker='o', label='Max Error', linewidth=1.5)
-    plt.plot(x, results_df['avg_error'], marker='x', label='Avg Error', linewidth=1.5)
+    # plt.plot(x, results_df['avg_error'], marker='x', label='Avg Error', linewidth=1.5)
     plt.plot(x, results_df['rms_error'], marker='s', label='RMS Error', linewidth=1.5)
     
     # Fit and plot trendlines for each error type
-    colors = ['C0', 'C1', 'C2']  # Default matplotlib colors
-    error_types = ['max_error', 'avg_error', 'rms_error']
-    error_labels = ['Max Error', 'Avg Error', 'RMS Error']
+    colors = ['C0', 'C1']  # Default matplotlib colors
+    error_types = ['max_error', 'rms_error'] # 'Avg Error' occulted
+    error_labels = ['Max Error', 'RMS Error']
     
     for i, (error_type, error_label, color) in enumerate(zip(error_types, error_labels, colors)):
         y = results_df[error_type].values
@@ -139,20 +139,20 @@ def plot_error_vs_parameter(results_df, parameter_name, output_dir, fixed_param_
         
         # Plot trendline using pre-calculated smooth values
         plt.plot(fit_result['x_smooth'], fit_result['y_smooth'], '--', color=color, alpha=0.7, linewidth=2,
-                label=f'{error_label} fit: Error = {fit_result["k"]:.2e} × {parameter_name}^{fit_result["alpha"]:.2f} (R² = {fit_result["r_squared"]:.3f})')
+                label=f'{error_label} Trendline: {fit_result["k"]:.2e} × {parameter_name}^{fit_result["alpha"]:.2f} (R² = {fit_result["r_squared"]:.3f})')
     
-    plt.xscale('log', base=2)
-    plt.yscale('log', base=2)
-    plt.xlabel(f'{parameter_name} (log₂ scale)')
-    plt.ylabel('Error (log₂ scale)')
-    plt.title(f'Error vs {parameter_name}{fixed_param_info}')
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.xlabel(f'{parameter_name} (log₁₀ scale)')
+    plt.ylabel('Error (log₁₀ scale)')
+    # plt.title(f'Error vs {parameter_name}{fixed_param_info}')
     plt.legend()
     plt.grid(True, which='both', linestyle='--', alpha=0.7)
     plt.tight_layout()
-    plt.savefig(output_dir / f'error_vs_{parameter_name}.png')
+    plt.savefig(output_dir / f'error_vs_{parameter_name}.pdf', bbox_inches='tight')
     plt.close()
 
-def plot_exec_time_vs_parameter(results_df, parameter_name, output_dir, fixed_param_info=""):
+def plot_exec_time_vs_parameter(results_df, parameter_name, output_dir, fixed_param_info="", trapezoidal_time=None):
     """
     Plot execution time vs a parameter (N or M) with power law trendline.
     
@@ -161,8 +161,9 @@ def plot_exec_time_vs_parameter(results_df, parameter_name, output_dir, fixed_pa
         parameter_name (str): Name of the parameter ('N' or 'M')
         output_dir (Path): Directory to save plots
         fixed_param_info (str): Information about fixed parameter for title
+        trapezoidal_time (float, optional): Trapezoidal execution time for reference line
     """
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(4, 3))  # Compact size for execution time plots
     
     x = results_df[parameter_name].values
     y = results_df['exec_time'].values
@@ -175,16 +176,21 @@ def plot_exec_time_vs_parameter(results_df, parameter_name, output_dir, fixed_pa
     
     # Plot trendline using pre-calculated smooth values
     plt.plot(fit_result['x_smooth'], fit_result['y_smooth'], '--', color='red', alpha=0.8, linewidth=2,
-            label=f'Power law fit: Time = {fit_result["k"]:.2e} × {parameter_name}^{fit_result["alpha"]:.2f} (R² = {fit_result["r_squared"]:.3f})')
+            label=f'Time Trendline: {fit_result["k"]:.2e} × {parameter_name}^{fit_result["alpha"]:.2f} (R² = {fit_result["r_squared"]:.3f})')
     
-    plt.xscale('log', base=2)
-    plt.xlabel(f'{parameter_name} (log₂ scale)')
+    # Add horizontal reference line for trapezoidal execution time
+    if trapezoidal_time is not None:
+        plt.axhline(y=trapezoidal_time, color='green', linestyle='-', linewidth=2, alpha=0.7,
+                   label=f'Trapezoidal Reference: {trapezoidal_time:.3f}s')
+    
+    plt.xscale('log')
+    plt.xlabel(f'{parameter_name} (log₁₀ scale)')
     plt.ylabel('Execution Time (s)')
-    plt.title(f'Execution Time vs {parameter_name}{fixed_param_info}')
+    # plt.title(f'Execution Time vs {parameter_name}{fixed_param_info}')
     plt.legend()
     plt.grid(True, which='both', linestyle='--', alpha=0.7)
     plt.tight_layout()
-    plt.savefig(output_dir / f'exec_time_vs_{parameter_name}.png')
+    plt.savefig(output_dir / f'exec_time_vs_{parameter_name}.pdf')
     plt.close()
 
 def plot_speedup_analysis(speedup_df, output_dir):
@@ -202,14 +208,14 @@ def plot_speedup_analysis(speedup_df, output_dir):
     plt.yscale('log', base=2)
     plt.xlabel('Threads (log₂ scale)')
     plt.ylabel('Speedup (log₂ scale)')
-    plt.title('Scalability: Speedup vs Threads')
+    # plt.title('Scalability: Speedup vs Threads')
     plt.legend()
     plt.grid(True, which='both', linestyle='--', alpha=0.7)
-    plt.savefig(output_dir / 'speedup_vs_threads.png')
-    plt.show()
+    plt.tight_layout()
+    plt.savefig(output_dir / 'speedup_vs_threads.pdf', bbox_inches='tight')
     plt.close()
 
-def plot_voltage_comparison(plot_data, output_dir, filename='voltage_comparison.png', title='Voltage Comparison'):
+def plot_voltage_comparison(plot_data, output_dir, filename='voltage_comparison.pdf', title='Voltage Comparison'):
     """
     Plot comparison of voltage data from multiple sources.
     
@@ -222,7 +228,7 @@ def plot_voltage_comparison(plot_data, output_dir, filename='voltage_comparison.
         filename (str): Filename for the saved plot
         title (str): Title for the plot
     """
-    plt.figure(figsize=(12, 8))
+    plt.figure(figsize=(8, 5))  # Good size for voltage comparison plots
     
     # Plot all data
     for data in plot_data:
@@ -238,10 +244,11 @@ def plot_voltage_comparison(plot_data, output_dir, filename='voltage_comparison.
     
     plt.xlabel('Time (s)')
     plt.ylabel('Voltage (V)')
-    plt.title(title)
+    # plt.title(title)
     plt.legend()
     plt.grid(True, alpha=0.3)
-    plt.savefig(output_dir / filename, dpi=300, bbox_inches='tight')
+    plt.tight_layout()
+    plt.savefig(output_dir / filename, bbox_inches='tight')
     plt.close()
 
 def main():
@@ -249,41 +256,68 @@ def main():
     parser.add_argument('netlist_path', help='Path to the SPICE netlist file')
     parser.add_argument('--output-dir', type=str, help='Directory to save plots (default: benchmark_dir/\{netlist_name\})')
     parser.add_argument('--include-spice', action='store_true', help='Include SPICE (NGSpice) simulation in comparison plots')
-    
+
     args = parser.parse_args()
-    
+
     # Set default output directory if not provided
     if args.output_dir is None:
         script_dir = os.path.dirname(os.path.abspath(__file__))
         netlist_name = os.path.splitext(os.path.basename(args.netlist_path))[0]
         args.output_dir = os.path.join(script_dir, netlist_name)
 
+    # Configure plot style
+    plt.rcParams.update({"legend.fontsize": 6, "savefig.bbox": "tight"})
+
     # Calculate reference df based on highest values of N and M
-    N_values = [1024 * (2 ** i) for i in range(6)]
-    M_values = [1024 * (2 ** i) for i in range(5)]
+    N_values = [1000, 5000, 10000, 40000, 80000, 160000, 320000]
+    M_values = [100, 1000, 10000]
     min_N, max_N = min(N_values), max(N_values)
     min_M, max_M = min(M_values), max(M_values)
 
     # Run the simulation with the highest N and M to get the reference data
     # Assuming run_trapezoidal returns a DataFrame with 'time' and 'voltage' columns
-    ref_df, _ = run_trapezoidal(args.netlist_path, 0, max_N)
+    ref_df, trapezoidal_exec_time, _ = run_trapezoidal(args.netlist_path, 0, 1000000)
+    print(f"Trapezoidal reference simulation: exec_time={trapezoidal_exec_time:.4f}s")
 
     # Run SPICE simulation if requested
     spice_df = None
     if args.include_spice:
         print("Running SPICE simulation...")
-        spice_df, _ = run_ngspice(args.netlist_path)
+        spice_df, _, _ = run_ngspice(args.netlist_path)
         print(f"SPICE simulation completed. Got {len(spice_df)} data points.")
+        
+        # Calculate error between trapezoidal and SPICE (treating SPICE as ground truth)
+        if spice_df is not None and len(spice_df) > 0:
+            trap_vs_spice_errors = calculate_errors(ref_df, spice_df)
+            print(f"Trapezoidal vs SPICE error metrics:")
+            print(f"  Max error: {trap_vs_spice_errors['max_error']:.4e}")
+            print(f"  Avg error: {trap_vs_spice_errors['avg_error']:.4e}")
+            print(f"  RMS error: {trap_vs_spice_errors['rms_error']:.4e}")
+            
+            # Create output directory and save error metrics to file
+            output_dir = Path(args.output_dir)
+            output_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Save trapezoidal vs SPICE error metrics
+            error_metrics = pd.DataFrame([{
+                'comparison': 'Trapezoidal_vs_SPICE',
+                'max_error': trap_vs_spice_errors['max_error'],
+                'avg_error': trap_vs_spice_errors['avg_error'],
+                'rms_error': trap_vs_spice_errors['rms_error'],
+                'trapezoidal_exec_time': trapezoidal_exec_time
+            }])
+            error_metrics.to_csv(output_dir / 'trapezoidal_vs_spice_errors.csv', index=False)
+            print(f"Error metrics saved to: {output_dir / 'trapezoidal_vs_spice_errors.csv'}")
 
     # Store all Monte Carlo results in a dictionary with (N,M) as key
     mc_results = {}
-    
+
     results = []
     for N in N_values:
         # Run simulation for current N and max_M
-        sim_df, exec_time = run_monte_carlo(args.netlist_path, 0, N, max_M, print_step=1024)
+        sim_df, exec_time, _ = run_monte_carlo(args.netlist_path, 0, N, max_M, print_step=1000)
         mc_results[(N, max_M)] = sim_df  # Store in dictionary
-        
+
         errors = calculate_errors(sim_df, ref_df)
         results.append({
             'N': N,
@@ -297,20 +331,24 @@ def main():
 
     # Store results as DataFrame
     results_df = pd.DataFrame(results)
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    # Output directory already created earlier (if SPICE was run) or create it now
+    if not Path(args.output_dir).exists():
+        output_dir = Path(args.output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        output_dir = Path(args.output_dir)
     results_df.to_csv(output_dir / 'sweep_N_results.csv', index=False)
 
     # Plot results for N sweep
     plot_error_vs_parameter(results_df, 'N', output_dir, " (M fixed at max)")
-    plot_exec_time_vs_parameter(results_df, 'N', output_dir, " (M fixed at max)")
+    plot_exec_time_vs_parameter(results_df, 'N', output_dir, " (M fixed at max)", trapezoidal_exec_time)
 
     results = []
     for M in M_values:
         # Run simulation for current M and max_N
-        sim_df, exec_time = run_monte_carlo(args.netlist_path, 0, max_N, M, print_step=1024)
+        sim_df, exec_time, _ = run_monte_carlo(args.netlist_path, 0, max_N, M, print_step=1000)
         mc_results[(max_N, M)] = sim_df  # Store in dictionary
-        
+
         errors = calculate_errors(sim_df, ref_df)
         results.append({
             'N': max_N,
@@ -324,13 +362,14 @@ def main():
 
     # Store results as DataFrame
     results_df = pd.DataFrame(results)
+    # Output directory should already exist from earlier steps
     output_dir = Path(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)  # Safe to call multiple times
     results_df.to_csv(output_dir / 'sweep_M_results.csv', index=False)
 
     # Plot results for M sweep
     plot_error_vs_parameter(results_df, 'M', output_dir, " (N fixed at max)")
-    plot_exec_time_vs_parameter(results_df, 'M', output_dir, " (N fixed at max)")
+    plot_exec_time_vs_parameter(results_df, 'M', output_dir, " (N fixed at max)", trapezoidal_exec_time)
 
     # Prepare plot data
     plot_data = [
@@ -355,7 +394,7 @@ def main():
             'style': {'color': 'b', 'linestyle': ':', 'linewidth': 1.5}
         }
     ]
-    
+
     # Add SPICE data if available
     if spice_df is not None:
         plot_data.append({
@@ -363,12 +402,12 @@ def main():
             'label': 'SPICE (NGSpice)',
             'style': {'color': 'm', 'linestyle': '-', 'linewidth': 2, 'alpha': 0.7}
         })
-        
-    # Plot solution comparison showing actual data  
+
+    # Plot solution comparison showing actual data
     plot_voltage_comparison(
         plot_data=plot_data,
         output_dir=output_dir,
-        filename='solution_comparison.png',
+        filename='solution_comparison.pdf',
         title='Solution Comparison: Effect of N and M Parameters'
     )
 
@@ -383,7 +422,7 @@ def main():
     speedup_results = []
     for threads in thread_values:
         # Assume run_monte_carlo accepts a 'threads' argument
-        sim_df, exec_time = run_monte_carlo(args.netlist_path, 0, max_N, max_M, print_step=1024, num_threads=threads)
+        sim_df, exec_time = run_monte_carlo(args.netlist_path, 0, max_N, max_M, print_step=1000, num_threads=threads)
         if not baseline_time:
             baseline_time = exec_time
         speedup = baseline_time / exec_time

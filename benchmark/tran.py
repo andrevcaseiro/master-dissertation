@@ -70,7 +70,7 @@ def run_monte_carlo(netlist_path, final_time, num_steps, num_samples=1000, seed=
         verbose (bool, optional): Print detailed information. Defaults to False.
     
     Returns:
-        tuple: (DataFrame with time and voltage columns, execution time in seconds)
+        tuple: (DataFrame with time and voltage columns, execution time in seconds, DC analysis time in seconds)
     """
     # Set up environment variables for OpenMP
     env_vars = {}
@@ -94,10 +94,14 @@ def run_monte_carlo(netlist_path, final_time, num_steps, num_samples=1000, seed=
     # Parse output to get data and execution time
     data = []
     exec_time = None
+    dc_time = None
 
     for line in output.splitlines():
         if "ODE solver time:" in line:
             exec_time = float(line.split(":")[1].split()[0])
+            continue
+        if "DC analysis time:" in line:
+            dc_time = float(line.split(":")[1].split()[0])
             continue
         try:
             parts = line.strip().split()
@@ -108,7 +112,7 @@ def run_monte_carlo(netlist_path, final_time, num_steps, num_samples=1000, seed=
         except (ValueError, IndexError):
             continue
     
-    return pd.DataFrame(data, columns=["time", "voltage"]), exec_time
+    return pd.DataFrame(data, columns=["time", "voltage"]), exec_time, dc_time
 
 
 def run_trapezoidal(netlist_path, final_time, num_steps, method="pardiso", num_threads=None, verbose=False):
@@ -124,7 +128,7 @@ def run_trapezoidal(netlist_path, final_time, num_steps, method="pardiso", num_t
         verbose (bool, optional): Print detailed information. Defaults to False.
     
     Returns:
-        tuple: (DataFrame with time and voltage columns, execution time in seconds)
+        tuple: (DataFrame with time and voltage columns, execution time in seconds, DC analysis time in seconds)
     """
     # Set up environment variables for OpenMP
     env_vars = {}
@@ -148,10 +152,14 @@ def run_trapezoidal(netlist_path, final_time, num_steps, method="pardiso", num_t
     # Parse output to get data and execution time
     data = []
     exec_time = None
+    dc_time = None
     
     for line in output.splitlines():
         if "ODE solver time:" in line:
             exec_time = float(line.split(":")[1].split()[0])
+            continue
+        if "DC analysis time:" in line:
+            dc_time = float(line.split(":")[1].split()[0])
             continue
         try:
             parts = line.strip().split()
@@ -162,7 +170,7 @@ def run_trapezoidal(netlist_path, final_time, num_steps, method="pardiso", num_t
         except (ValueError, IndexError):
             continue
     
-    return pd.DataFrame(data, columns=["time", "voltage"]), exec_time
+    return pd.DataFrame(data, columns=["time", "voltage"]), exec_time, dc_time
 
 
 def run_ngspice(netlist_path, verbose=False):
@@ -207,7 +215,7 @@ def run_ngspice(netlist_path, verbose=False):
                 continue
     
     # ngspice doesn't provide execution time directly, so we return None
-    return pd.DataFrame(data, columns=["time", "voltage"]), None
+    return pd.DataFrame(data, columns=["time", "voltage"]), None, None
 
 
 def main():
