@@ -177,9 +177,10 @@ std::vector<float> MonteCarloODESolver::solve_sequence(size_t output_N) {
 
             size_t state = _row;
             float exponential = 1;
-            for (size_t output_n = 1; output_n < output_size; ++output_n) {
-                integrals[output_n] = (*_b[state])(output_n * output_freq * delta_t);
+            for (size_t output_n = 1; output_n <= output_N; ++output_n) {
+                integrals[output_n] = 0.5 * (*_b[state])(output_n * output_freq * delta_t);
             }
+            
             for (size_t n = 1; n <= _N; ++n) {
                 exponential *= exp(_D[state] * delta_t / 2);
 
@@ -191,13 +192,17 @@ std::vector<float> MonteCarloODESolver::solve_sequence(size_t output_N) {
 
                 exponential *= exp(_D[state] * delta_t / 2);
 
-                for (size_t output_n = n / output_freq; output_n < output_size; ++output_n) {
-                    float sample_time = ((output_n * output_freq) - n) * delta_t;
-                    integrals[output_n] += exponential * (*_b[state])(sample_time);
+                size_t output_n = n / output_freq;
+                for (size_t curr_output_n = output_n; curr_output_n <= output_N; ++curr_output_n) {
+                    float sample_time = ((curr_output_n * output_freq) - n) * delta_t;
+                    if (curr_output_n == output_n) {
+                        integrals[curr_output_n] += exponential * 0.5 * (*_b[state])(sample_time);
+                    } else {
+                        integrals[curr_output_n] += exponential * (*_b[state])(sample_time);
+                    }
                 }
 
                 if (n % output_freq == 0) {
-                    size_t output_n = n / output_freq;
                     float sample = exponential * _x_0[state] + integrals[output_n] * delta_t;
                     local_res[output_n] += sample / _M;
                 }
