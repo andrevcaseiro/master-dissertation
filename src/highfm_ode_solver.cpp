@@ -27,7 +27,7 @@ HigFMODESolver::HigFMODESolver(const Eigen::SparseMatrix<float>& A,
 
 std::vector<float> HigFMODESolver::solve_sequence() const {
     size_t dim = _x_0.size();
-    float dt = _t / static_cast<float>(_N);
+    float dt = _t / static_cast<double>(_N);
 
     /* Copy x_0 into mutable x */
     HighFM::Vector<float> x(dim);
@@ -55,7 +55,7 @@ std::vector<float> HigFMODESolver::solve_sequence() const {
     HighFM::Pardiso<float> solver;
     solver.factorize(LHS);
 
-    float t = 0.0f;
+    double t = 0.0f;
     HighFM::Vector<float> b_n(dim), b_np1(dim), rhs(dim);
     for (size_t j = 0; j < dim; ++j) b_n(j) = _b[j]->operator()(t);
 
@@ -84,7 +84,7 @@ std::vector<float> HigFMODESolver::solve_sequence() const {
 
 std::vector<float> HigFMODESolver::solve_sequence_cg() const {
     size_t dim = _x_0.size();
-    float dt = _t / static_cast<float>(_N);
+    double dt = _t / static_cast<double>(_N);
 
     /* Copy x_0 into mutable x */
     HighFM::Vector<float> x(dim);

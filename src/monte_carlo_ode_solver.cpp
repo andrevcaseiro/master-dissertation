@@ -146,7 +146,7 @@ float MonteCarloODESolver::solve() {
 }
 
 std::vector<float> MonteCarloODESolver::solve_sequence(size_t output_N) {
-    float delta_t = _t / _N;
+    double delta_t = _t / _N;
 
     if (output_N == 0) output_N = _N;
     if (_N % output_N != 0) {
