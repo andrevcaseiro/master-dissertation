@@ -155,6 +155,7 @@ std::vector<float> MonteCarloODESolver::solve_sequence(size_t output_N) {
     }
     size_t output_freq = _N / output_N;
     size_t output_size = output_N + 1;
+    double output_delta_t = _t / output_N;
 
     init();
 
@@ -173,12 +174,19 @@ std::vector<float> MonteCarloODESolver::solve_sequence(size_t output_N) {
         std::vector<float> integrals(output_size, 0);
 #pragma omp for
         for (size_t m = 0; m < _M; m++) {
+            // Only master thread updates progress
+            if (omp_get_thread_num() == 0) {
+                // Estimate progress based on master thread's work
+                size_t estimated_completed = m * omp_get_num_threads();
+                progress.update(estimated_completed);
+            }
+            
             /* Samples are divided equally among threads */
 
             size_t state = _row;
             float exponential = 1;
             for (size_t output_n = 1; output_n <= output_N; ++output_n) {
-                integrals[output_n] = 0.5 * (*_b[state])(output_n * output_freq * delta_t);
+                integrals[output_n] = 0.5 * (*_b[state])(output_n * output_delta_t);
             }
             
             for (size_t n = 1; n <= _N; ++n) {
@@ -192,27 +200,20 @@ std::vector<float> MonteCarloODESolver::solve_sequence(size_t output_N) {
 
                 exponential *= exp(_D[state] * delta_t / 2);
 
-                size_t output_n = n / output_freq;
-                for (size_t curr_output_n = output_n; curr_output_n <= output_N; ++curr_output_n) {
-                    float sample_time = ((curr_output_n * output_freq) - n) * delta_t;
-                    if (curr_output_n == output_n) {
-                        integrals[curr_output_n] += exponential * 0.5 * (*_b[state])(sample_time);
-                    } else {
-                        integrals[curr_output_n] += exponential * (*_b[state])(sample_time);
-                    }
-                }
-
                 if (n % output_freq == 0) {
-                    float sample = exponential * _x_0[state] + integrals[output_n] * delta_t;
+                    size_t output_n = n / output_freq;
+                    for (size_t curr_output_n = output_n; curr_output_n <= output_N; ++curr_output_n) {
+                        float sample_time = (curr_output_n - output_n) * output_delta_t;
+                        if (curr_output_n == output_n) {
+                            integrals[curr_output_n] += exponential * 0.5 * (*_b[state])(sample_time);
+                        } else {
+                            integrals[curr_output_n] += exponential * (*_b[state])(sample_time);
+                        }
+                    }
+
+                    float sample = exponential * _x_0[state] + integrals[output_n] * output_delta_t;
                     local_res[output_n] += sample / _M;
                 }
-            }
-
-            // Only master thread updates progress
-            if (omp_get_thread_num() == 0) {
-                // Estimate progress based on master thread's work
-                size_t estimated_completed = m * omp_get_num_threads();
-                progress.update(estimated_completed);
             }
         }
 
