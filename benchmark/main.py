@@ -5,8 +5,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 import argparse
-import multiprocessing
 from tran import run_monte_carlo, run_trapezoidal, run_ngspice
+from scalability import N_values, M_values, run_scalability_analysis
 
 
 def fit_power_law(x, y):
@@ -193,28 +193,6 @@ def plot_exec_time_vs_parameter(results_df, parameter_name, output_dir, fixed_pa
     plt.savefig(output_dir / f'exec_time_vs_{parameter_name}.pdf')
     plt.close()
 
-def plot_speedup_analysis(speedup_df, output_dir):
-    """
-    Plot speedup analysis vs number of threads.
-    
-    Args:
-        speedup_df (pandas.DataFrame): Speedup results dataframe
-        output_dir (Path): Directory to save plots
-    """
-    plt.figure()
-    plt.plot(speedup_df['threads'], speedup_df['speedup'], marker='o', label='Measured Speedup')
-    plt.plot(speedup_df['threads'], speedup_df['threads'], 'k--', label='Ideal Linear Speedup')
-    plt.xscale('log', base=2)
-    plt.yscale('log', base=2)
-    plt.xlabel('Threads (log₂ scale)')
-    plt.ylabel('Speedup (log₂ scale)')
-    # plt.title('Scalability: Speedup vs Threads')
-    plt.legend()
-    plt.grid(True, which='both', linestyle='--', alpha=0.7)
-    plt.tight_layout()
-    plt.savefig(output_dir / 'speedup_vs_threads.pdf', bbox_inches='tight')
-    plt.close()
-
 def plot_voltage_comparison(plot_data, output_dir, filename='voltage_comparison.pdf', title='Voltage Comparison'):
     """
     Plot comparison of voltage data from multiple sources.
@@ -269,14 +247,12 @@ def main():
     plt.rcParams.update({"legend.fontsize": 6, "savefig.bbox": "tight"})
 
     # Calculate reference df based on highest values of N and M
-    N_values = [1000, 5000, 10000, 40000, 80000, 160000, 320000]
-    M_values = [100, 1000, 10000]
     min_N, max_N = min(N_values), max(N_values)
     min_M, max_M = min(M_values), max(M_values)
 
     # Run the simulation with the highest N and M to get the reference data
     # Assuming run_trapezoidal returns a DataFrame with 'time' and 'voltage' columns
-    ref_df, trapezoidal_exec_time, _ = run_trapezoidal(args.netlist_path, 0, 1000000)
+    ref_df, trapezoidal_exec_time, _ = run_trapezoidal(args.netlist_path, 0, 10000)
     print(f"Trapezoidal reference simulation: exec_time={trapezoidal_exec_time:.4f}s")
 
     # Run SPICE simulation if requested
@@ -315,7 +291,7 @@ def main():
     results = []
     for N in N_values:
         # Run simulation for current N and max_M
-        sim_df, exec_time, _ = run_monte_carlo(args.netlist_path, 0, N, max_M, print_step=1000)
+        sim_df, exec_time, _ = run_monte_carlo(args.netlist_path, 0, N, max_M, print_step=10000)
         mc_results[(N, max_M)] = sim_df  # Store in dictionary
 
         errors = calculate_errors(sim_df, ref_df)
@@ -346,7 +322,7 @@ def main():
     results = []
     for M in M_values:
         # Run simulation for current M and max_N
-        sim_df, exec_time, _ = run_monte_carlo(args.netlist_path, 0, max_N, M, print_step=1000)
+        sim_df, exec_time, _ = run_monte_carlo(args.netlist_path, 0, max_N, M, print_step=10000)
         mc_results[(max_N, M)] = sim_df  # Store in dictionary
 
         errors = calculate_errors(sim_df, ref_df)
@@ -411,29 +387,8 @@ def main():
         title='Solution Comparison: Effect of N and M Parameters'
     )
 
-    # Scalability (speedup) analysis: vary number of threads from 1 to available CPU cores
-    max_threads = multiprocessing.cpu_count()
-    thread_values = [2 ** i for i in range(int(np.log2(max_threads)) + 1) if 2 ** i <= max_threads]
-    if 1 not in thread_values:
-        thread_values = [1] + thread_values  # Ensure 1 is included
-
-    # Use max_N and max_M for a fair comparison
-    baseline_time = None
-    speedup_results = []
-    for threads in thread_values:
-        # Assume run_monte_carlo accepts a 'threads' argument
-        sim_df, exec_time = run_monte_carlo(args.netlist_path, 0, max_N, max_M, print_step=1000, num_threads=threads)
-        if not baseline_time:
-            baseline_time = exec_time
-        speedup = baseline_time / exec_time
-        speedup_results.append({'threads': threads, 'exec_time': exec_time, 'speedup': speedup})
-        print(f"Threads={threads}, exec_time={exec_time:.4f}s, speedup={speedup:.2f}")
-
-    speedup_df = pd.DataFrame(speedup_results)
-    speedup_df.to_csv(output_dir / 'scalability_results.csv', index=False)
-
-    # Plot speedup analysis
-    plot_speedup_analysis(speedup_df, output_dir)
+    # Run scalability analysis
+    run_scalability_analysis(args.netlist_path, output_dir)
 
 if __name__ == "__main__":
     main()

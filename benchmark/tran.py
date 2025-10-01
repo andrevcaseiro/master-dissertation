@@ -87,7 +87,7 @@ def run_monte_carlo(netlist_path, final_time, num_steps, num_samples=1000, seed=
     # Remove file extension from basename for output path
     netlist_basename = os.path.splitext(os.path.basename(netlist_path))[0]
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    output_path = os.path.join(script_dir, f"{netlist_basename}/monte_carlo/t{final_time}_N{num_steps}_M{num_samples}_s{seed}{threads_str}.out")
+    output_path = os.path.join(script_dir, f"{netlist_basename}/monte_carlo/t{final_time}_N{num_steps}_M{num_samples}_s{seed}_p{print_step}{threads_str}.out")
     
     output = run_and_save(cmd, output_path, env_vars)
     
