@@ -480,22 +480,26 @@ void Netlist::handle_nonzero_voltage_sources(UnionFind& uf) {
             for (auto it = range.first; it != range.second; ++it) {
                 auto& r = resistors[it->second];
 
+                // Get representative nodes for comparison
+                int r_rep1 = uf.find(r.node1);
+                int r_rep2 = uf.find(r.node2);
+
                 std::optional<int> shared_node;
                 int pos = -1, neg = -1;
 
-                if (vs.node1 == r.node1) {
+                if (rep1 == r_rep1) {
                     shared_node = vs.node1;
                     pos = r.node2;
                     neg = vs.node2;
-                } else if (vs.node1 == r.node2) {
+                } else if (rep1 == r_rep2) {
                     shared_node = vs.node1;
                     pos = r.node1;
                     neg = vs.node2;
-                } else if (vs.node2 == r.node1) {
+                } else if (rep2 == r_rep1) {
                     shared_node = vs.node2;
                     pos = vs.node1;
                     neg = r.node2;
-                } else if (vs.node2 == r.node2) {
+                } else if (rep2 == r_rep2) {
                     shared_node = vs.node2;
                     pos = vs.node1;
                     neg = r.node1;
