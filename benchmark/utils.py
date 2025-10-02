@@ -2,6 +2,9 @@
 import numpy as np
 from scipy.optimize import curve_fit
 
+# Global parameter values
+N_values = [100000, 1000000, 10000000]
+M_values = [100, 1000, 10000]
 
 def fit_power_law(x, y):
     """

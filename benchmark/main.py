@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import argparse
 from tran import run_monte_carlo, run_trapezoidal, run_ngspice
-from scalability import N_values, M_values, run_scalability_analysis
-from utils import fit_power_law
+from scalability import run_scalability_analysis
+from utils import N_values, M_values, fit_power_law
 
 
 def calculate_errors(df, ref_df):
@@ -329,7 +329,7 @@ def main():
     )
 
     # Run scalability analysis
-    run_scalability_analysis(args.netlist_path, output_dir)
+    # run_scalability_analysis(args.netlist_path, output_dir)
 
 if __name__ == "__main__":
     main()
