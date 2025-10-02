@@ -7,66 +7,7 @@ from pathlib import Path
 import argparse
 from tran import run_monte_carlo, run_trapezoidal, run_ngspice
 from scalability import N_values, M_values, run_scalability_analysis
-
-
-def fit_power_law(x, y):
-    """
-    Fit a power law y = k * x^alpha using log-log linear regression.
-    
-    Args:
-        x (array-like): Independent variable
-        y (array-like): Dependent variable
-        
-    Returns:
-        dict: Dictionary containing:
-            - 'k': Multiplicative constant
-            - 'alpha': Power law exponent
-            - 'r_squared': Coefficient of determination
-            - 'residuals': Residuals in linear space
-            - 'log_residuals': Residuals in log space
-            - 'y_fitted': Fitted y values at original x points
-            - 'x_smooth': Smooth x values for plotting
-            - 'y_smooth': Smooth y values for plotting
-    """
-    # Convert to numpy arrays and take logarithms
-    log_x = np.log(x)
-    log_y = np.log(y)
-    
-    # Perform linear regression in log space: log(y) = log(k) + alpha * log(x)
-    A = np.vstack([log_x, np.ones(len(log_x))]).T
-    coeffs, residuals_sum, _, _ = np.linalg.lstsq(A, log_y, rcond=None)
-    
-    alpha = coeffs[0]
-    log_k = coeffs[1]
-    k = np.exp(log_k)
-    
-    # Calculate R-squared
-    y_pred_log = log_k + alpha * log_x
-    ss_res = np.sum((log_y - y_pred_log) ** 2)
-    ss_tot = np.sum((log_y - np.mean(log_y)) ** 2)
-    r_squared = 1 - (ss_res / ss_tot)
-    
-    # Calculate fitted values at original x points
-    y_fitted = k * (x ** alpha)
-    
-    # Calculate residuals in both log and linear space
-    residuals = y - y_fitted
-    log_residuals = log_y - y_pred_log
-    
-    # Generate smooth curve for plotting
-    x_smooth = np.logspace(np.log10(x.min()), np.log10(x.max()), 100)
-    y_smooth = k * (x_smooth ** alpha)
-    
-    return {
-        'k': k,
-        'alpha': alpha,
-        'r_squared': r_squared,
-        'residuals': residuals,
-        'log_residuals': log_residuals,
-        'y_fitted': y_fitted,
-        'x_smooth': x_smooth,
-        'y_smooth': y_smooth
-    }
+from utils import fit_power_law
 
 
 def calculate_errors(df, ref_df):
