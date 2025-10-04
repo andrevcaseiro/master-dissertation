@@ -507,7 +507,7 @@ void Netlist::handle_nonzero_voltage_sources(UnionFind& uf) {
 
                 if (shared_node && shared_node.value() > 0) {
                     float current = vs.value / r.value;
-                    std::string iname = "I_" + vs.name + "_" + r.name;
+                    std::string iname = "i_" + vs.name + "_" + r.name;
 
                     isources.emplace_back(iname, neg, pos, current);
 
