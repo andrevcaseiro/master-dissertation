@@ -149,8 +149,8 @@ std::vector<float> MonteCarloODESolver::solve_sequence(size_t output_N) {
     double delta_t = _t / _N;
 
     if (output_N == 0) output_N = _N;
-    if (_N % output_N != 0) {
-        std::runtime_error(
+    if (_N < output_N || _N % output_N != 0) {
+        throw std::runtime_error(
             "The number of output points must evenly divide the total number of steps.");
     }
     size_t output_freq = _N / output_N;
