@@ -28,7 +28,7 @@ class MonteCarloODESolver {
      * @return float exponentially distributed time
      */
     template <typename Generator>
-    float generate_time(Generator& gen, size_t current_state);
+    double generate_time(Generator& gen, size_t current_state);
 
     /**
      * @brief Generate a random new state

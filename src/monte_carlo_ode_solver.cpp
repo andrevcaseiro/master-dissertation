@@ -22,9 +22,9 @@
 #include "utils/progress_bar.h"
 
 template <typename Generator>
-float MonteCarloODESolver::generate_time(Generator& gen, size_t current_state) {
+double MonteCarloODESolver::generate_time(Generator& gen, size_t current_state) {
     /* Exponential distribution with positive lambda */
-    std::exponential_distribution<float> dist(-_L.diagonal(current_state));
+    std::exponential_distribution<double> dist(-_L.diagonal(current_state));
 
     return dist(gen);
 }
@@ -162,7 +162,7 @@ std::vector<float> MonteCarloODESolver::solve_sequence(size_t output_N) {
     std::vector<float> res(output_size, 0);
 
     // Progress bar - only master thread updates it
-    ProgressBar progress("MC Samples", _M);
+    ProgressBar progress("MC Samples", _M, 5);
 
 #pragma omp parallel
     {
@@ -184,7 +184,7 @@ std::vector<float> MonteCarloODESolver::solve_sequence(size_t output_N) {
             /* Samples are divided equally among threads */
 
             size_t state = _row;
-            float exponential = 1;
+            double exponential = 1;
             for (size_t output_n = 1; output_n <= output_N; ++output_n) {
                 integrals[output_n] = 0.5 * (*_b[state])(output_n * output_delta_t);
             }
@@ -192,7 +192,7 @@ std::vector<float> MonteCarloODESolver::solve_sequence(size_t output_N) {
             for (size_t n = 1; n <= _N; ++n) {
                 exponential *= exp(_D[state] * delta_t / 2);
 
-                float tau = generate_time(gen, state);
+                double tau = generate_time(gen, state);
                 while (tau < delta_t) {
                     tau += generate_time(gen, state);
                     state = generate_state(gen, state);
@@ -203,7 +203,7 @@ std::vector<float> MonteCarloODESolver::solve_sequence(size_t output_N) {
                 if (n % output_freq == 0) {
                     size_t output_n = n / output_freq;
                     for (size_t curr_output_n = output_n; curr_output_n <= output_N; ++curr_output_n) {
-                        float sample_time = (curr_output_n - output_n) * output_delta_t;
+                        double sample_time = (curr_output_n - output_n) * output_delta_t;
                         if (curr_output_n == output_n) {
                             integrals[curr_output_n] += exponential * 0.5 * (*_b[state])(sample_time);
                         } else {
@@ -211,7 +211,7 @@ std::vector<float> MonteCarloODESolver::solve_sequence(size_t output_N) {
                         }
                     }
 
-                    float sample = exponential * _x_0[state] + integrals[output_n] * output_delta_t;
+                    double sample = exponential * _x_0[state] + integrals[output_n] * output_delta_t;
                     local_res[output_n] += sample / _M;
                 }
             }
