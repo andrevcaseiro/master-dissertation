@@ -34,12 +34,13 @@ def run_and_save(command, filepath, env_vars=None):
                 ("second", time_diff.seconds)
             ]
             
+            time_ago = "??? ago"
             for unit, value in time_units:
                 if value > 0:
                     time_ago = f"{value} {unit}{'s' if value != 1 else ''} ago"
                     break
             
-            print(f"> Using cached result from {cached_time.strftime('%Y-%m-%d %H:%M:%S')} ({time_ago})")
+            print(f"  Using cached result from {cached_time.strftime('%Y-%m-%d %H:%M:%S')} ({time_ago})")
             return f.read()
     except FileNotFoundError:
         # Setup environment variables if provided
@@ -93,15 +94,31 @@ def run_monte_carlo(netlist_path, final_time, num_steps, num_samples=1000, seed=
     
     # Parse output to get data and execution time
     data = []
-    exec_time = None
-    dc_time = None
+    netlist_time = 0
+    mna_time = 0
+    ode_creation_time = 0
+    dc_time = 0
+    csr_time = 0
+    ode_solver_time = 0
 
     for line in output.splitlines():
-        if "ODE solver time:" in line:
-            exec_time = float(line.split(":")[1].split()[0])
+        if "Netlist processing time:" in line:
+            netlist_time = float(line.split(":")[1].split()[0])
+            continue
+        if "MNA creation time:" in line:
+            mna_time = float(line.split(":")[1].split()[0])
+            continue
+        if "ODE creation time:" in line:
+            ode_creation_time = float(line.split(":")[1].split()[0])
             continue
         if "DC analysis time:" in line:
             dc_time = float(line.split(":")[1].split()[0])
+            continue
+        if "CSR conversion time:" in line:
+            csr_time = float(line.split(":")[1].split()[0])
+            continue
+        if "ODE solver time:" in line:
+            ode_solver_time = float(line.split(":")[1].split()[0])
             continue
         try:
             parts = line.strip().split()
@@ -112,7 +129,7 @@ def run_monte_carlo(netlist_path, final_time, num_steps, num_samples=1000, seed=
         except (ValueError, IndexError):
             continue
     
-    return pd.DataFrame(data, columns=["time", "voltage"]), exec_time, dc_time
+    return pd.DataFrame(data, columns=["time", "voltage"]), mna_time + ode_creation_time + dc_time + csr_time + ode_solver_time, ode_solver_time
 
 
 def run_trapezoidal(netlist_path, final_time, num_steps, method="pardiso", num_threads=None, verbose=False):

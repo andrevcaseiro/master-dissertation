@@ -225,7 +225,7 @@ def run_scalability_analysis(netlist_path, output_dir):
             mc_baseline_time = exec_time
         speedup = mc_baseline_time / exec_time
         mc_speedup_results.append({"threads": threads, "exec_time": exec_time, "speedup": speedup})
-        print(f"Monte Carlo - Threads={threads}, exec_time={exec_time:.4f}s, speedup={speedup:.2f}")
+        print(f"  Monte Carlo - Threads={threads}, exec_time={exec_time:.4f}s, speedup={speedup:.2f}")
 
     # Trapezoidal scalability analysis
     print("Running Trapezoidal scalability analysis...")
@@ -241,7 +241,7 @@ def run_scalability_analysis(netlist_path, output_dir):
             trap_baseline_time = exec_time
         speedup = trap_baseline_time / exec_time
         trap_speedup_results.append({"threads": threads, "exec_time": exec_time, "speedup": speedup})
-        print(f"Trapezoidal - Threads={threads}, exec_time={exec_time:.4f}s, speedup={speedup:.2f}")
+        print(f"  Trapezoidal - Threads={threads}, exec_time={exec_time:.4f}s, speedup={speedup:.2f}")
 
     # Create DataFrames
     mc_speedup_df = pd.DataFrame(mc_speedup_results)

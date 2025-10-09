@@ -3,8 +3,130 @@ import numpy as np
 from scipy.optimize import curve_fit
 
 # Global parameter values
-N_values = [100000, 1000000, 10000000]
-M_values = [100, 1000, 10000]
+N_o = 10000
+N_values = [1000000, 2500000, 5000000, 10000000, 25000000, 50000000, 100000000]
+M_values = [100, 250, 500, 1000, 2500, 5000, 10000]
+N_o_values = [100, 250, 500, 1000, 2500, 5000, 10000]
+parameter_values = {
+    'trap': [10, 100, 1000, 10000],  # Simple list of N values for trapezoidal method
+    'mc': [
+        (10000, 100000000, 10000),
+        (10000,  50000000, 10000),
+        (10000,  25000000, 10000),
+        (10000,  10000000, 10000),
+        (5000,   50000000, 10000),
+        (5000,   25000000, 10000),
+        (5000,   10000000, 10000),
+        (2000,   25000000, 10000),
+        (2000,   10000000, 10000),
+        (1000,  100000000, 10000),
+        (1000,   50000000, 10000),
+        (1000,   25000000, 10000),
+        (1000,   10000000, 10000),
+        (500,   100000000, 10000),
+        (500,    50000000, 10000),
+        (500,    25000000, 10000),
+        (500,    10000000, 10000),
+    ]
+}
+
+""" N_o = 10000
+N_values = [1000000, 10000000, 100000000]
+M_values = [500, 1000, 2500, 5000, 10000, 25000]
+parameter_values = {
+    'trap': [10, 100, 1000, 10000],  # Simple list of N values for trapezoidal method
+    'mc': [
+        (500,   100000000, 10000),
+        (500,    50000000, 10000),
+        (500,    25000000, 10000),
+        (500,    10000000, 10000),
+    ]
+} """
+"""N_o = 10000
+N_values = [10000, 20000, 50000]
+M_values = [100, 250, 500, 1000]
+# Print step values for analyzing the effect of print frequency on runtime and error
+N_o_values = [100, 500, 1000, 5000, 10000, 20000]
+parameter_values = {
+    'trap': [100, 1000, 10000],  # Simple list of N values for trapezoidal method
+    'mc': [
+        (10000,  10000, 1000),
+        (10000,  25000, 1000),
+        (10000,  50000, 1000),
+        #(10000, 100000, 1000),
+        #(10000,  10000, 5000),
+        #(10000,  20000, 5000),
+        #(10000,  50000, 5000),
+        #(10000, 100000, 5000),
+        
+    ]
+}"""
+
+
+def calculate_errors(df, ref_df):
+    """
+    Calculate error metrics between simulation results and reference data.
+    
+    Args:
+        df (pandas.DataFrame): Simulation data with time and voltage columns
+        ref_df (pandas.DataFrame): Reference data with time and voltage columns
+        
+    Returns:
+        dict: Dictionary with error metrics
+    """
+
+    # Determine which dataset is more dense
+    if len(ref_df) > len(df):
+        # Reference is more dense, interpolate df to match reference points
+        sim_voltage = np.interp(ref_df['time'], df['time'], df['voltage'])
+        ref_voltage = ref_df['voltage'].values
+        
+        # Use reference time points for error calculation
+        time_points = ref_df['time']
+    else:
+        # Simulation is more dense, interpolate reference to match simulation points
+        sim_voltage = df['voltage'].values
+        ref_voltage = np.interp(df['time'], ref_df['time'], ref_df['voltage'])
+        
+        # Use simulation time points for error calculation
+        time_points = df['time']
+    
+    abs_error = np.abs(sim_voltage - ref_voltage)
+    rel_error = abs_error / (np.abs(ref_voltage) + 1e-10)  # Avoid division by zero
+    
+    # Calculate time intervals for weighted averages
+    time_array = time_points.values if hasattr(time_points, 'values') else time_points
+    dt = np.diff(time_array)
+    
+    # For weighted averages, we need weights for each time point
+    # Use trapezoidal rule approach: each point gets half the interval on each side
+    weights = np.zeros_like(time_array)
+    
+    if len(time_array) > 1:
+        # First point gets half of the first interval
+        weights[0] = dt[0] / 2
+        
+        # Middle points get half of the intervals on both sides
+        for i in range(1, len(time_array) - 1):
+            weights[i] = (dt[i-1] + dt[i]) / 2
+        
+        # Last point gets half of the last interval
+        weights[-1] = dt[-1] / 2
+        
+        # Normalize weights to sum to 1 for proper averaging
+        weights = weights / np.sum(weights)
+    else:
+        weights[0] = 1.0  # Single point case
+    
+    return {
+        'max_error': np.max(abs_error),                           # Maximum absolute error
+        'max_rel_error': np.max(rel_error),                      # Maximum relative error
+        'avg_error': np.average(abs_error, weights=weights),     # Time-weighted average absolute error
+        'avg_rel_error': np.average(rel_error, weights=weights), # Time-weighted average relative error
+        'rms_error': np.sqrt(np.average(abs_error**2, weights=weights)),      # Time-weighted RMS error (absolute)
+        'rms_rel_error': np.sqrt(np.average(rel_error**2, weights=weights)),  # Time-weighted RMS relative error
+        'time_points': time_points
+    }
 
 def fit_power_law(x, y):
     """

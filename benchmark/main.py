@@ -7,48 +7,9 @@ from pathlib import Path
 import argparse
 from tran import run_monte_carlo, run_trapezoidal, run_ngspice
 from scalability import run_scalability_analysis
-from utils import N_values, M_values, fit_power_law
+from utils import N_o, N_values, M_values, N_o_values, fit_power_law, parameter_values, calculate_errors
+from time_vs_error_analysis import plot_time_vs_error_analysis
 
-
-def calculate_errors(df, ref_df):
-    """
-    Calculate error metrics between simulation results and reference data.
-    
-    Args:
-        df (pandas.DataFrame): Simulation data with time and voltage columns
-        ref_df (pandas.DataFrame): Reference data with time and voltage columns
-        
-    Returns:
-        dict: Dictionary with error metrics
-    """
-
-    # Determine which dataset is more dense
-    if len(ref_df) > len(df):
-        # Reference is more dense, interpolate df to match reference points
-        sim_voltage = np.interp(ref_df['time'], df['time'], df['voltage'])
-        ref_voltage = ref_df['voltage'].values
-        
-        # Use reference time points for error calculation
-        time_points = ref_df['time']
-    else:
-        # Simulation is more dense, interpolate reference to match simulation points
-        sim_voltage = df['voltage'].values
-        ref_voltage = np.interp(df['time'], ref_df['time'], ref_df['voltage'])
-        
-        # Use simulation time points for error calculation
-        time_points = df['time']
-    
-    abs_error = np.abs(sim_voltage - ref_voltage)
-    rel_error = abs_error / (np.abs(ref_voltage) + 1e-10)  # Avoid division by zero
-    
-    return {
-        'max_error': np.max(rel_error),
-        'avg_error': np.mean(rel_error),
-        'rms_error': np.sqrt(np.mean(rel_error**2)),
-        'time_points': time_points,
-        'abs_error': abs_error,
-        'rel_error': rel_error
-    }
 
 def plot_error_vs_parameter(results_df, parameter_name, output_dir, fixed_param_info=""):
     """
@@ -84,7 +45,11 @@ def plot_error_vs_parameter(results_df, parameter_name, output_dir, fixed_param_
     
     plt.xscale('log')
     plt.yscale('log')
-    plt.xlabel(f'{parameter_name} (log₁₀ scale)')
+    # Create a more descriptive xlabel for print_step
+    xlabel = f'{parameter_name} (log₁₀ scale)'
+    if parameter_name == 'print_step':
+        xlabel = 'Print Step (log₁₀ scale)'
+    plt.xlabel(xlabel)
     plt.ylabel('Error (log₁₀ scale)')
     # plt.title(f'Error vs {parameter_name}{fixed_param_info}')
     plt.legend()
@@ -110,7 +75,7 @@ def plot_exec_time_vs_parameter(results_df, parameter_name, output_dir, fixed_pa
     y = results_df['exec_time'].values
     
     # Plot data points
-    plt.plot(x, y, marker='o', label='Execution Time', linewidth=1.5, markersize=6)
+    plt.plot(x, y, color="C0", marker='o', label='Execution Time', linewidth=1.5, markersize=6)
     
     # Fit and plot trendline
     fit_result = fit_power_law(x, y)
@@ -125,7 +90,11 @@ def plot_exec_time_vs_parameter(results_df, parameter_name, output_dir, fixed_pa
                    label=f'Trapezoidal Reference: {trapezoidal_time:.3f}s')
     
     plt.xscale('log')
-    plt.xlabel(f'{parameter_name} (log₁₀ scale)')
+    # Create a more descriptive xlabel for print_step
+    xlabel = f'{parameter_name} (log₁₀ scale)'
+    if parameter_name == 'print_step':
+        xlabel = 'Print Step (log₁₀ scale)'
+    plt.xlabel(xlabel)
     plt.ylabel('Execution Time (s)')
     # plt.title(f'Execution Time vs {parameter_name}{fixed_param_info}')
     plt.legend()
@@ -190,10 +159,11 @@ def main():
     # Calculate reference df based on highest values of N and M
     min_N, max_N = min(N_values), max(N_values)
     min_M, max_M = min(M_values), max(M_values)
+    min_N_o, max_N_o = min(N_o_values), max(N_o_values)
 
     # Run the simulation with the highest N and M to get the reference data
     # Assuming run_trapezoidal returns a DataFrame with 'time' and 'voltage' columns
-    ref_df, trapezoidal_exec_time, _ = run_trapezoidal(args.netlist_path, 0, 10000)
+    ref_df, trapezoidal_exec_time, _ = run_trapezoidal(args.netlist_path, 0, N_o)
     print(f"Trapezoidal reference simulation: exec_time={trapezoidal_exec_time:.4f}s")
 
     # Run SPICE simulation if requested
@@ -232,8 +202,8 @@ def main():
     results = []
     for N in N_values:
         # Run simulation for current N and max_M
-        sim_df, exec_time, _ = run_monte_carlo(args.netlist_path, 0, N, max_M, print_step=10000)
-        mc_results[(N, max_M)] = sim_df  # Store in dictionary
+        sim_df, exec_time, _ = run_monte_carlo(args.netlist_path, 0, N, max_M, print_step=max_N_o)
+        mc_results[(N, max_M, max_N_o)] = sim_df  # Store in dictionary with consistent 3-tuple format
 
         errors = calculate_errors(sim_df, ref_df)
         results.append({
@@ -244,7 +214,7 @@ def main():
             'avg_error': errors['avg_error'],
             'rms_error': errors['rms_error']
         })
-        print(f"N={N}, exec_time={exec_time:.4f}s, max_error={errors['max_error']:.4e}")
+        print(f"  N={N}, exec_time={exec_time:.4f}s, max_error={errors['max_error']:.4e}")
 
     # Store results as DataFrame
     results_df = pd.DataFrame(results)
@@ -263,8 +233,8 @@ def main():
     results = []
     for M in M_values:
         # Run simulation for current M and max_N
-        sim_df, exec_time, _ = run_monte_carlo(args.netlist_path, 0, max_N, M, print_step=10000)
-        mc_results[(max_N, M)] = sim_df  # Store in dictionary
+        sim_df, exec_time, _ = run_monte_carlo(args.netlist_path, 0, max_N, M, print_step=max_N_o)
+        mc_results[(max_N, M, max_N_o)] = sim_df  # Store in dictionary with consistent 3-tuple format
 
         errors = calculate_errors(sim_df, ref_df)
         results.append({
@@ -275,7 +245,7 @@ def main():
             'avg_error': errors['avg_error'],
             'rms_error': errors['rms_error']
         })
-        print(f"M={M}, exec_time={exec_time:.4f}s, max_error={errors['max_error']:.4e}")
+        print(f"  M={M}, exec_time={exec_time:.4f}s, max_error={errors['max_error']:.4e}")
 
     # Store results as DataFrame
     results_df = pd.DataFrame(results)
@@ -288,27 +258,60 @@ def main():
     plot_error_vs_parameter(results_df, 'M', output_dir, " (N fixed at max)")
     plot_exec_time_vs_parameter(results_df, 'M', output_dir, " (N fixed at max)", trapezoidal_exec_time)
 
+    # Print Step Sweep Analysis
+    print("\nRunning print step sweep analysis...")
+    results = []
+    for print_step in N_o_values:
+        # Run simulation for current print_step with max_N and max_M
+        sim_df, exec_time, _ = run_monte_carlo(args.netlist_path, 0, max_N, max_M, print_step=print_step)
+        mc_results[(max_N, max_M, print_step)] = sim_df  # Store in dictionary with print_step as third key
+
+        errors = calculate_errors(sim_df, ref_df)
+        results.append({
+            'print_step': print_step,
+            'N': max_N,
+            'M': max_M,
+            'exec_time': exec_time,
+            'max_error': errors['max_error'],
+            'avg_error': errors['avg_error'],
+            'rms_error': errors['rms_error']
+        })
+        print(f"  print_step={print_step}, exec_time={exec_time:.4f}s, max_error={errors['max_error']:.4e}")
+
+    # Store results as DataFrame
+    results_df = pd.DataFrame(results)
+    results_df.to_csv(output_dir / 'sweep_print_step_results.csv', index=False)
+
+    # Plot results for print step sweep
+    plot_error_vs_parameter(results_df, 'print_step', output_dir, " (N and M fixed at max)")
+    plot_exec_time_vs_parameter(results_df, 'print_step', output_dir, " (N and M fixed at max)", trapezoidal_exec_time)
+
     # Prepare plot data
     plot_data = [
         {
             'df': ref_df,
-            'label': 'Reference (Trapezoidal)',
-            'style': {'color': 'k', 'linestyle': '-', 'linewidth': 2}
+            'label': f'Trapezoidal ($N={N_o}$)',
+            'style': {'color': 'C1', 'linestyle': '-', 'linewidth': 1.5}
         },
         {
-            'df': mc_results[(max_N, max_M)],
-            'label': f'Best MC (N={max_N}, M={max_M})',
-            'style': {'color': 'g', 'linestyle': '-', 'linewidth': 1.5}
+            'df': mc_results[(max_N, max_M, max_N_o)],
+            'label': f'Best MC ($N={max_N}$, $M={max_M}$)',
+            'style': {'color': 'C0', 'linestyle': '-', 'linewidth': 1.5}
         },
         {
-            'df': mc_results[(max_N, min_M)],
-            'label': f'Low M (N={max_N}, M={min_M})',
-            'style': {'color': 'r', 'linestyle': '--', 'linewidth': 1.5}
+            'df': mc_results[(max_N, min_M, max_N_o)],
+            'label': f'Low M ($N={max_N}$, $M={min_M}$)',
+            'style': {'color': 'C2', 'linestyle': '--', 'linewidth': 1}
         },
         {
-            'df': mc_results[(min_N, max_M)],
-            'label': f'Low N (N={min_N}, M={max_M})',
-            'style': {'color': 'b', 'linestyle': ':', 'linewidth': 1.5}
+            'df': mc_results[(min_N, max_M, max_N_o)],
+            'label': f'Low N ($N={min_N}$, $M={max_M}$)',
+            'style': {'color': 'C3', 'linestyle': ':', 'linewidth': 1}
+        },
+        {
+            'df': mc_results[(max_N, max_M, min_N_o)],
+            'label': f'Low Print Step ($print_step={min_N_o}$)',
+            'style': {'color': 'C4', 'linestyle': '-.', 'linewidth': 1}
         }
     ]
 
@@ -317,7 +320,7 @@ def main():
         plot_data.append({
             'df': spice_df,
             'label': 'SPICE (NGSpice)',
-            'style': {'color': 'm', 'linestyle': '-', 'linewidth': 2, 'alpha': 0.7}
+            'style': {'color': 'C4', 'linestyle': '-', 'linewidth': 2, 'alpha': 0.7}
         })
 
     # Plot solution comparison showing actual data
@@ -330,6 +333,11 @@ def main():
 
     # Run scalability analysis
     # run_scalability_analysis(args.netlist_path, output_dir)
+    
+    # Run time vs error analysis for both trapezoidal and Monte Carlo methods
+    # Use SPICE as reference if available, otherwise use highest N trapezoidal
+    reference_for_analysis = spice_df if spice_df is not None and not spice_df.empty else None
+    plot_time_vs_error_analysis(args.netlist_path, 0, parameter_values=parameter_values, output_dir=output_dir, ref_df=reference_for_analysis)
 
 if __name__ == "__main__":
     main()
