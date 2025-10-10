@@ -2,39 +2,10 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.cm as cm
+from matplotlib.colors import LogNorm
 from pathlib import Path
 from tran import run_trapezoidal, run_monte_carlo
-from utils import calculate_errors
-
-
-def format_scientific_notation(value):
-    """
-    Format a number in scientific notation for LaTeX display.
-    
-    Args:
-        value (float): Number to format
-        
-    Returns:
-        str: LaTeX formatted scientific notation string
-    """
-    if value == 0:
-        return "0"
-    
-    # Get the exponent
-    exponent = int(np.floor(np.log10(abs(value))))
-    
-    # Get the mantissa
-    mantissa = value / (10 ** exponent)
-    
-    # Format based on exponent
-    if exponent == 0:
-        return f"{mantissa:.1f}"
-    elif exponent == 1:
-        return f"{value:.0f}"
-    else:
-        return f"{mantissa:.1f} \\times 10^{{{exponent}}}"
-
+from utils import calculate_errors, format_scientific_notation
 
 def run_time_vs_error_analysis(netlist_path, final_time, parameter_values, ref_df=None):
     """
@@ -168,7 +139,7 @@ def plot_time_vs_error(trap_df, mc_df, netlist_name, output_dir, error_column, y
             plt.annotate(f'$N={format_scientific_notation(row["N"])}$', 
                         (row['exec_time'], row[error_column]),
                         xytext=(5, 5), textcoords='offset points',
-                        fontsize=10, alpha=0.8)
+                        fontsize=8, alpha=0.8)
     
     # Plot Monte Carlo method results with color scale based on N_o
     if not mc_df.empty:
@@ -176,12 +147,12 @@ def plot_time_vs_error(trap_df, mc_df, netlist_name, output_dir, error_column, y
         
         # Create color map based on N_o values
         n_o_values = mc_df['n_o'].values
+        m_str = format_scientific_notation(mc_df.iloc[0]["M"])
         if len(set(n_o_values)) > 1:  # Only use colormap if there are different N_o values
             # Use logarithmic normalization for color mapping
-            from matplotlib.colors import LogNorm
             
             scatter = plt.scatter(mc_df['exec_time'], mc_df[error_column],
-                               c=n_o_values, cmap='viridis', s=60, label='Monte Carlo',
+                               c=n_o_values, cmap='viridis', s=60, label=f'Monte Carlo ($M={m_str}$)',
                                norm=LogNorm(vmin=n_o_values.min(), vmax=n_o_values.max()))
             
             # Add colorbar for N_o values with logarithmic scale
@@ -190,14 +161,13 @@ def plot_time_vs_error(trap_df, mc_df, netlist_name, output_dir, error_column, y
         else:
             # Use single color if all N_o values are the same
             plt.scatter(mc_df['exec_time'], mc_df[error_column],
-                       color='C0', s=60, label='Monte Carlo')
+                       color='C0', s=60, label=f'Monte Carlo ($M={m_str}$)')
         
         # Add n_o,N,M value annotations for Monte Carlo
         for _, row in mc_df.iterrows():
             n_o_str = format_scientific_notation(row["n_o"])
             n_str = format_scientific_notation(row["N"])
-            m_str = format_scientific_notation(row["M"])
-            plt.annotate(f'$N_o={n_o_str},N={n_str},M={m_str}$', 
+            plt.annotate(f'$N={n_str}$', 
                         (row['exec_time'], row[error_column]),
                         xytext=(5, 5), textcoords='offset points',
                         fontsize=8, alpha=0.8)
@@ -240,11 +210,11 @@ def plot_time_vs_error_analysis(netlist_path, final_time, parameter_values={}, o
 
     # Define all error metrics to plot
     error_metrics = [
-        ('max_abs_error', 'Maximum Absolute Error'),
+        ('max_abs_error', 'Maximum Error'),
         ('max_rel_error', 'Maximum Relative Error'),
-        ('avg_abs_error', 'Average Absolute Error'),
-        ('avg_rel_error', 'Average Relative Error'),
-        ('rms_abs_error', 'RMS Absolute Error'),
+        ('avg_abs_error', 'Medium Absolute Error'),
+        ('avg_rel_error', 'Medium Relative Error'),
+        ('rms_abs_error', 'RMSE'),
         ('rms_rel_error', 'RMS Relative Error')
     ]
     

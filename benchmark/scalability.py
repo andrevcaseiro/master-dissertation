@@ -5,7 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import multiprocessing
 from tran import run_monte_carlo, run_trapezoidal
-from utils import N_values, M_values, fit_amdahls_law
+from utils import N_values, M_values, N_o_values, fit_amdahls_law
 from scipy.optimize import curve_fit
 
 
@@ -205,8 +205,9 @@ def run_scalability_analysis(netlist_path, output_dir):
     Returns:
         tuple: (mc_speedup_df, trap_speedup_df) DataFrames with scalability results
     """
-    max_N = max(N_values)
-    max_M = max(M_values)
+    max_N = N_values[-1]
+    max_M = M_values[-1]
+    max_N_o = N_o_values[-1]
 
     # Scalability (speedup) analysis: vary number of threads from 1 to available CPU cores
     max_threads = multiprocessing.cpu_count() / 2 # assume two virtual threads per phyical core
@@ -220,7 +221,7 @@ def run_scalability_analysis(netlist_path, output_dir):
     mc_speedup_results = []
 
     for threads in thread_values:
-        sim_df, exec_time, _ = run_monte_carlo(netlist_path, 0, max_N, max_M, print_step=10000, num_threads=threads)
+        sim_df, exec_time, _ = run_monte_carlo(netlist_path, 0, max_N, max_M, print_step=max_N_o, num_threads=threads)
         if not mc_baseline_time:
             mc_baseline_time = exec_time
         speedup = mc_baseline_time / exec_time

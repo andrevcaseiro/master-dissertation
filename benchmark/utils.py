@@ -4,9 +4,9 @@ from scipy.optimize import curve_fit
 
 # Global parameter values
 N_o = 10000
-N_values = [1000000, 2500000, 5000000, 10000000, 25000000, 50000000, 100000000]
-M_values = [100, 250, 500, 1000, 2500, 5000, 10000]
-N_o_values = [100, 250, 500, 1000, 2500, 5000, 10000]
+N_values = [1000000, 2500000, 5000000, 10000000, 25000000, 50000000, 100000000, 50000000]
+M_values = [50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000, 5000]
+N_o_values = [100, 250, 500, 1000, 2500, 5000, 10000, 25000, 10000]
 parameter_values = {
     'trap': [10, 100, 1000, 10000],  # Simple list of N values for trapezoidal method
     'mc': [
@@ -14,9 +14,12 @@ parameter_values = {
         (10000,  50000000, 10000),
         (10000,  25000000, 10000),
         (10000,  10000000, 10000),
+        #(5000,  100000000, 10000),
         (5000,   50000000, 10000),
         (5000,   25000000, 10000),
         (5000,   10000000, 10000),
+        #(2000,  100000000, 10000),
+        #(2000,   50000000, 10000),
         (2000,   25000000, 10000),
         (2000,   10000000, 10000),
         (1000,  100000000, 10000),
@@ -31,18 +34,16 @@ parameter_values = {
 }
 
 """ N_o = 10000
-N_values = [1000000, 10000000, 100000000]
-M_values = [500, 1000, 2500, 5000, 10000, 25000]
+N_o_values = [1000, 10000]
+N_values = [1000000, 10000000, 25000000, 50000000]
+M_values = [1000, 10000]
 parameter_values = {
     'trap': [10, 100, 1000, 10000],  # Simple list of N values for trapezoidal method
     'mc': [
-        (500,   100000000, 10000),
-        (500,    50000000, 10000),
-        (500,    25000000, 10000),
-        (500,    10000000, 10000),
+        (10000,   50000000, 10000),
     ]
 } """
-"""N_o = 10000
+""" N_o = 10000
 N_values = [10000, 20000, 50000]
 M_values = [100, 250, 500, 1000]
 # Print step values for analyzing the effect of print frequency on runtime and error
@@ -60,7 +61,7 @@ parameter_values = {
         #(10000, 100000, 5000),
         
     ]
-}"""
+} """
 
 
 def calculate_errors(df, ref_df):
@@ -263,3 +264,30 @@ def fit_amdahls_law(threads, speedup):
             'equation': "Fit failed",
             'fitted_speedup': np.ones_like(speedup)
         }
+
+def format_scientific_notation(value):
+    """
+    Format a number in scientific notation for LaTeX display.
+    
+    Args:
+        value (float): Number to format
+        
+    Returns:
+        str: LaTeX formatted scientific notation string
+    """
+    if value == 0:
+        return "0"
+    
+    # Get the exponent
+    exponent = int(np.floor(np.log10(abs(value))))
+    
+    # Get the mantissa
+    mantissa = value / (10 ** exponent)
+    
+    # Format based on exponent
+    if exponent == 0:
+        return f"{mantissa:.1f}"
+    elif exponent == 1:
+        return f"{value:.0f}"
+    else:
+        return f"{mantissa:.1f} \\times 10^{{{exponent}}}"
