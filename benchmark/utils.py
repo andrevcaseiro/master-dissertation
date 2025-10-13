@@ -8,7 +8,7 @@ N_values = [1000000, 2500000, 5000000, 10000000, 25000000, 50000000, 100000000, 
 M_values = [100, 150, 250, 500, 750, 1000, 2500, 5000, 10000, 25000, 5000]
 N_o_values = [100, 250, 500, 1000, 2500, 5000, 10000, 25000, 10000]
 parameter_values = {
-    'trap': [10, 100, 1000, 10000],  # Simple list of N values for trapezoidal method
+    'trap': [10, 100, 500, 1000, 5000, 10000],  # Simple list of N values for trapezoidal method
     'mc': [
         (10000, 100000000, 10000),
         (10000,  50000000, 10000),
@@ -44,22 +44,19 @@ parameter_values = {
     ]
 } """
 """ N_o = 10000
-N_values = [10000, 20000, 50000]
+N_values = [10000, 20000]
 M_values = [100, 250, 500, 1000]
 # Print step values for analyzing the effect of print frequency on runtime and error
-N_o_values = [100, 500, 1000, 5000, 10000, 20000]
+N_o_values = [100, 500, 1000]
 parameter_values = {
-    'trap': [100, 1000, 10000],  # Simple list of N values for trapezoidal method
+    'trap': [100, 500, 1000, 5000, 10000, 100000],  # Simple list of N values for trapezoidal method
     'mc': [
-        (10000,  10000, 1000),
-        (10000,  25000, 1000),
-        (10000,  50000, 1000),
-        #(10000, 100000, 1000),
-        #(10000,  10000, 5000),
-        #(10000,  20000, 5000),
-        #(10000,  50000, 5000),
-        #(10000, 100000, 5000),
-        
+        (10000,    10000, 1000),
+        (10000,  1000000, 1000),
+        (10000,100000000, 1000),
+        ( 5000,    10000, 1000),
+        ( 5000,  1000000, 1000),
+        ( 5000,100000000, 1000),
     ]
 } """
 

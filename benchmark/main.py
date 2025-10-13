@@ -7,7 +7,7 @@ from pathlib import Path
 import argparse
 from tran import run_monte_carlo, run_trapezoidal, run_ngspice
 from scalability import run_scalability_analysis
-from utils import N_o, N_values, M_values, N_o_values, fit_power_law, fit_power_law_with_offset, parameter_values, calculate_errors, format_scientific_notation
+from utils import N_o, N_values, M_values, N_o_values, fit_power_law, parameter_values, calculate_errors, format_scientific_notation
 from time_vs_error_analysis import plot_time_vs_error_analysis
 
 
@@ -26,31 +26,29 @@ def plot_error_vs_parameter(results_df, parameter_name, output_dir, fixed_param_
     x = results_df[parameter_name].values
     
     # Plot data points
-    plt.plot(x, results_df['max_error'], "C1o", label='Max Error', linewidth=1.5)
+    plt.plot(x, results_df['max_error'], "o", label='Max Error', linewidth=1.5)
     # plt.plot(x, results_df['avg_error'], marker='x', label='Avg Error', linewidth=1.5)
-    plt.plot(x, results_df['rms_error'], "C0s", label='RMS Error', linewidth=1.5)
+    plt.plot(x, results_df['rms_error'], "s", label='RMS Error', linewidth=1.5)
     
     # Fit and plot trendlines for each error type
-    colors = ['C1', 'C0']  # Default matplotlib colors
+    colors = ['C0', 'C1']  # Default matplotlib colors
     error_types = ["max_error", 'rms_error'] 
     error_labels = ["Max error", 'RMS Error']
     
     for i, (error_type, error_label, color) in enumerate(zip(error_types, error_labels, colors)):
         y = results_df[error_type].values
-        #fit_result = fit_power_law_with_offset(x, y)
         fit_result = fit_power_law(x, y)
         
         # Plot trendline using pre-calculated smooth values
         plt.plot(fit_result['x_smooth'], fit_result['y_smooth'], '--', color=color, alpha=0.7, linewidth=2,
-                label=f'{error_label} Trendline: ${fit_result["equation"](parameter_name)}\;(R^2 = {fit_result["r_squared"]:.3f})$')
+                label=f'{error_label} Trendline: ${format_scientific_notation(fit_result["k"])} {parameter_name}^{{{fit_result["alpha"]:.2f}}}\;(R^2 = {fit_result["r_squared"]:.3f})$')
     
     plt.xscale('log')
     plt.yscale('log')
-    # plt.yscale('log')
     # Create a more descriptive xlabel for print_step
-    xlabel = f'${parameter_name}$ ($\log_{{10}}$ scale)'
+    xlabel = f'${parameter_name}$ (log₁₀ scale)'
     plt.xlabel(xlabel)
-    plt.ylabel('Error (V)')
+    plt.ylabel('Error (log₁₀ scale)')
     # plt.title(f'Error vs {parameter_name}{fixed_param_info}')
     plt.legend()
     plt.grid(True, which='both', linestyle='--', alpha=0.7)
@@ -69,21 +67,20 @@ def plot_exec_time_vs_parameter(results_df, parameter_name, output_dir, fixed_pa
         fixed_param_info (str): Information about fixed parameter for title
         trapezoidal_time (float, optional): Trapezoidal execution time for reference line
     """
-    plt.figure(figsize=(5, 4))  # Compact size for execution time plots
+    plt.figure(figsize=(4, 3))  # Compact size for execution time plots
     
     x = results_df[parameter_name].values
     y = results_df['exec_time'].values
     
     # Plot data points
-    plt.plot(x, y, "C0o", label=f'Execution Time{fixed_param_info}', markersize=6)
+    plt.plot(x, y, "C1o", label='Execution Time', linewidth=1.5, markersize=6)
     
     # Fit and plot trendline
-    #fit_result = fit_power_law_with_offset(x, y)
     fit_result = fit_power_law(x, y)
     
     # Plot trendline using pre-calculated smooth values
-    plt.plot(fit_result['x_smooth'], fit_result['y_smooth'], '--', color='C0', alpha=0.8, linewidth=2,
-            label=f'Time Trendline: ${fit_result["equation"](parameter_name)}\;(R^2 = {fit_result["r_squared"]:.3f})$')
+    plt.plot(fit_result['x_smooth'], fit_result['y_smooth'], '--', color='C1', alpha=0.8, linewidth=2,
+            label=f'Time Trendline: ${format_scientific_notation(fit_result["k"])} {parameter_name}^{{{fit_result["alpha"]:.2f}}}\;(R^2 = {fit_result["r_squared"]:.3f})$')
     
     # Add horizontal reference line for trapezoidal execution time
     if trapezoidal_time is not None:
@@ -91,7 +88,6 @@ def plot_exec_time_vs_parameter(results_df, parameter_name, output_dir, fixed_pa
                    label=f'Trapezoidal Reference: {trapezoidal_time:.3f}s')
     
     plt.xscale('log')
-    plt.yscale('log')
     # Create a more descriptive xlabel for print_step
     xlabel = f'${parameter_name}$ (log₁₀ scale)'
     plt.xlabel(xlabel)
@@ -227,8 +223,8 @@ def main():
     results_df.to_csv(output_dir / 'sweep_N_results.csv', index=False)
 
     # Plot results for N sweep
-    plot_error_vs_parameter(results_df, 'N', output_dir, f" ($M={max_M}$, $N_o={max_N_o}$)")
-    plot_exec_time_vs_parameter(results_df, 'N', output_dir, f" ($M={max_M}$, $N_o={max_N_o}$)")
+    plot_error_vs_parameter(results_df, 'N', output_dir, " (M fixed at max)")
+    plot_exec_time_vs_parameter(results_df, 'N', output_dir, " (M fixed at max)")
 
     results = []
     for M in M_values:
@@ -255,8 +251,8 @@ def main():
     results_df.to_csv(output_dir / 'sweep_M_results.csv', index=False)
 
     # Plot results for M sweep
-    plot_error_vs_parameter(results_df, 'M', output_dir, f" ($N={max_N}$, $N_o={max_N_o}$)")
-    plot_exec_time_vs_parameter(results_df, 'M', output_dir, f" ($N={max_N}$, $N_o={max_N_o}$)")
+    plot_error_vs_parameter(results_df, 'M', output_dir, " (N fixed at max)")
+    plot_exec_time_vs_parameter(results_df, 'M', output_dir, " (N fixed at max)")
 
     # Print Step Sweep Analysis
     print("\nRunning print step sweep analysis...")
@@ -283,20 +279,20 @@ def main():
     results_df.to_csv(output_dir / 'sweep_print_step_results.csv', index=False)
 
     # Plot results for print step sweep
-    plot_error_vs_parameter(results_df, 'N_o', output_dir, f" ($N={max_N}$, $M={max_M}$)")
-    plot_exec_time_vs_parameter(results_df, 'N_o', output_dir, f" ($N={max_N}$, $M={max_M}$)")
+    plot_error_vs_parameter(results_df, 'N_o', output_dir, " (N and M fixed at max)")
+    plot_exec_time_vs_parameter(results_df, 'N_o', output_dir, " (N and M fixed at max)")
 
     # Prepare plot data
     plot_data = [
         {
             'df': ref_df,
             'label': f'Trapezoidal ($N={N_o}$)',
-            'style': {'color': 'C1', 'linestyle': '-', 'linewidth': 2}
+            'style': {'color': 'C1', 'linestyle': '-', 'linewidth': 1.5}
         },
         {
             'df': mc_results[(max_N, max_M, max_N_o)],
             'label': f'Best MC ($N={max_N}$, $M={max_M}$, $N_o={max_N_o}$)',
-            'style': {'color': 'C0', 'linestyle': '-', 'linewidth': 2}
+            'style': {'color': 'C0', 'linestyle': '-', 'linewidth': 1.5}
         },
         {
             'df': mc_results[(max_N, min_M, max_N_o)],
@@ -319,8 +315,8 @@ def main():
     if spice_df is not None:
         plot_data.append({
             'df': spice_df,
-            'label': 'Ngspice',
-            'style': {'color': 'C5', 'linestyle': '-', 'linewidth': 2, 'alpha': 0.7}
+            'label': 'SPICE (NGSpice)',
+            'style': {'color': 'C4', 'linestyle': '-', 'linewidth': 2, 'alpha': 0.7}
         })
 
     # Plot solution comparison showing actual data

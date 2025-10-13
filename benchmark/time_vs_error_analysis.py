@@ -122,39 +122,43 @@ def plot_time_vs_error(trap_df, mc_df, netlist_name, output_dir, error_column, y
         error_column (str): Column name for the error metric to plot
         ylabel (str): Label for the y-axis
     """
+    # Filter out rows with error == 0 for the current error_column
+    trap_df = trap_df[trap_df[error_column] != 0] if not trap_df.empty else trap_df
+    mc_df = mc_df[mc_df[error_column] != 0] if not mc_df.empty else mc_df
+
     if trap_df.empty and mc_df.empty:
         print("No results to plot")
         return
-    
+
     plt.figure(figsize=(10, 6))
-    
+
     # Plot trapezoidal method results with squares
     if not trap_df.empty:
         trap_df = trap_df.sort_values('exec_time')
         plt.scatter(trap_df['exec_time'], trap_df[error_column], 
                    color='C1', s=60, marker='s', label='Trapezoidal')
-        
+
         # Add N value annotations for trapezoidal
         for _, row in trap_df.iterrows():
             plt.annotate(f'$N={format_scientific_notation(row["N"])}$', 
                         (row['exec_time'], row[error_column]),
                         xytext=(5, 5), textcoords='offset points',
                         fontsize=8, alpha=0.8)
-    
+
     # Plot Monte Carlo method results with color scale based on N_o
     if not mc_df.empty:
         mc_df = mc_df.sort_values('exec_time')
-        
+
         # Create color map based on N_o values
         n_o_values = mc_df['n_o'].values
         m_str = format_scientific_notation(mc_df.iloc[0]["M"])
         if len(set(n_o_values)) > 1:  # Only use colormap if there are different N_o values
             # Use logarithmic normalization for color mapping
-            
+
             scatter = plt.scatter(mc_df['exec_time'], mc_df[error_column],
                                c=n_o_values, cmap='viridis', s=60, label=f'Monte Carlo ($M={m_str}$)',
                                norm=LogNorm(vmin=n_o_values.min(), vmax=n_o_values.max()))
-            
+
             # Add colorbar for N_o values with logarithmic scale
             cbar = plt.colorbar(scatter)
             cbar.set_label('$N_o$')
@@ -162,7 +166,7 @@ def plot_time_vs_error(trap_df, mc_df, netlist_name, output_dir, error_column, y
             # Use single color if all N_o values are the same
             plt.scatter(mc_df['exec_time'], mc_df[error_column],
                        color='C0', s=60, label=f'Monte Carlo ($M={m_str}$)')
-        
+
         # Add n_o,N,M value annotations for Monte Carlo
         for _, row in mc_df.iterrows():
             n_o_str = format_scientific_notation(row["n_o"])
@@ -171,7 +175,7 @@ def plot_time_vs_error(trap_df, mc_df, netlist_name, output_dir, error_column, y
                         (row['exec_time'], row[error_column]),
                         xytext=(5, 5), textcoords='offset points',
                         fontsize=8, alpha=0.8)
-    
+
     plt.xlabel('Execution Time (s)')
     plt.ylabel(ylabel)
     #plt.xscale('log')
