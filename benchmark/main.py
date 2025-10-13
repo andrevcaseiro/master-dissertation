@@ -7,7 +7,7 @@ from pathlib import Path
 import argparse
 from tran import run_monte_carlo, run_trapezoidal, run_ngspice
 from scalability import run_scalability_analysis
-from utils import N_o, N_values, M_values, N_o_values, fit_power_law, parameter_values, calculate_errors, format_scientific_notation
+from utils import N_o, N_values, M_values, N_o_values, fit_power_law, fit_power_law_with_offset, parameter_values, calculate_errors, format_scientific_notation
 from time_vs_error_analysis import plot_time_vs_error_analysis
 
 
@@ -26,29 +26,31 @@ def plot_error_vs_parameter(results_df, parameter_name, output_dir, fixed_param_
     x = results_df[parameter_name].values
     
     # Plot data points
-    plt.plot(x, results_df['max_error'], "o", label='Max Error', linewidth=1.5)
+    plt.plot(x, results_df['max_error'], "C1o", label='Max Error', linewidth=1.5)
     # plt.plot(x, results_df['avg_error'], marker='x', label='Avg Error', linewidth=1.5)
-    plt.plot(x, results_df['rms_error'], "s", label='RMS Error', linewidth=1.5)
+    plt.plot(x, results_df['rms_error'], "C0s", label='RMS Error', linewidth=1.5)
     
     # Fit and plot trendlines for each error type
-    colors = ['C0', 'C1']  # Default matplotlib colors
+    colors = ['C1', 'C0']  # Default matplotlib colors
     error_types = ["max_error", 'rms_error'] 
     error_labels = ["Max error", 'RMS Error']
     
     for i, (error_type, error_label, color) in enumerate(zip(error_types, error_labels, colors)):
         y = results_df[error_type].values
+        #fit_result = fit_power_law_with_offset(x, y)
         fit_result = fit_power_law(x, y)
         
         # Plot trendline using pre-calculated smooth values
         plt.plot(fit_result['x_smooth'], fit_result['y_smooth'], '--', color=color, alpha=0.7, linewidth=2,
-                label=f'{error_label} Trendline: ${format_scientific_notation(fit_result["k"])} {parameter_name}^{{{fit_result["alpha"]:.2f}}}\;(R^2 = {fit_result["r_squared"]:.3f})$')
+                label=f'{error_label} Trendline: ${fit_result["equation"](parameter_name)}\;(R^2 = {fit_result["r_squared"]:.3f})$')
     
     plt.xscale('log')
+    plt.yscale('log')
     # plt.yscale('log')
     # Create a more descriptive xlabel for print_step
     xlabel = f'${parameter_name}$ ($\log_{{10}}$ scale)'
     plt.xlabel(xlabel)
-    plt.ylabel('Error')
+    plt.ylabel('Error (V)')
     # plt.title(f'Error vs {parameter_name}{fixed_param_info}')
     plt.legend()
     plt.grid(True, which='both', linestyle='--', alpha=0.7)
@@ -67,7 +69,7 @@ def plot_exec_time_vs_parameter(results_df, parameter_name, output_dir, fixed_pa
         fixed_param_info (str): Information about fixed parameter for title
         trapezoidal_time (float, optional): Trapezoidal execution time for reference line
     """
-    plt.figure(figsize=(4, 3))  # Compact size for execution time plots
+    plt.figure(figsize=(5, 4))  # Compact size for execution time plots
     
     x = results_df[parameter_name].values
     y = results_df['exec_time'].values
@@ -76,11 +78,12 @@ def plot_exec_time_vs_parameter(results_df, parameter_name, output_dir, fixed_pa
     plt.plot(x, y, "C0o", label=f'Execution Time{fixed_param_info}', markersize=6)
     
     # Fit and plot trendline
+    #fit_result = fit_power_law_with_offset(x, y)
     fit_result = fit_power_law(x, y)
     
     # Plot trendline using pre-calculated smooth values
     plt.plot(fit_result['x_smooth'], fit_result['y_smooth'], '--', color='C0', alpha=0.8, linewidth=2,
-            label=f'Time Trendline: ${format_scientific_notation(fit_result["k"])} {parameter_name}^{{{fit_result["alpha"]:.2f}}}\;(R^2 = {fit_result["r_squared"]:.3f})$')
+            label=f'Time Trendline: ${fit_result["equation"](parameter_name)}\;(R^2 = {fit_result["r_squared"]:.3f})$')
     
     # Add horizontal reference line for trapezoidal execution time
     if trapezoidal_time is not None:
@@ -88,6 +91,7 @@ def plot_exec_time_vs_parameter(results_df, parameter_name, output_dir, fixed_pa
                    label=f'Trapezoidal Reference: {trapezoidal_time:.3f}s')
     
     plt.xscale('log')
+    plt.yscale('log')
     # Create a more descriptive xlabel for print_step
     xlabel = f'${parameter_name}$ (log₁₀ scale)'
     plt.xlabel(xlabel)

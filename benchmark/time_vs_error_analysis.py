@@ -175,7 +175,7 @@ def plot_time_vs_error(trap_df, mc_df, netlist_name, output_dir, error_column, y
     plt.xlabel('Execution Time (s)')
     plt.ylabel(ylabel)
     #plt.xscale('log')
-    #plt.yscale('log')
+    plt.yscale('log')
     plt.grid(True, alpha=0.3)
     plt.legend()
     plt.tight_layout()
@@ -210,11 +210,11 @@ def plot_time_vs_error_analysis(netlist_path, final_time, parameter_values={}, o
 
     # Define all error metrics to plot
     error_metrics = [
-        ('max_abs_error', 'Maximum Error'),
+        ('max_abs_error', 'Maximum Error (V)'),
         ('max_rel_error', 'Maximum Relative Error'),
-        ('avg_abs_error', 'Medium Absolute Error'),
+        ('avg_abs_error', 'Medium Absolute Error (V)'),
         ('avg_rel_error', 'Medium Relative Error'),
-        ('rms_abs_error', 'RMSE'),
+        ('rms_abs_error', 'RMSE (V)'),
         ('rms_rel_error', 'RMS Relative Error')
     ]
     

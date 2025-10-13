@@ -5,7 +5,7 @@ from scipy.optimize import curve_fit
 # Global parameter values
 N_o = 10000
 N_values = [1000000, 2500000, 5000000, 10000000, 25000000, 50000000, 100000000, 50000000]
-M_values = [50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000, 5000]
+M_values = [100, 150, 250, 500, 750, 1000, 2500, 5000, 10000, 25000, 5000]
 N_o_values = [100, 250, 500, 1000, 2500, 5000, 10000, 25000, 10000]
 parameter_values = {
     'trap': [10, 100, 1000, 10000],  # Simple list of N values for trapezoidal method
@@ -177,6 +177,8 @@ def fit_power_law(x, y):
     x_smooth = np.logspace(np.log10(x.min()), np.log10(x.max()), 100)
     y_smooth = k * (x_smooth ** alpha)
     
+    def get_equation(param_name="x"):
+        return f"{format_scientific_notation(k)} {param_name}^{{{alpha:.2f}}}"
     return {
         'k': k,
         'alpha': alpha,
@@ -185,8 +187,134 @@ def fit_power_law(x, y):
         'log_residuals': log_residuals,
         'y_fitted': y_fitted,
         'x_smooth': x_smooth,
-        'y_smooth': y_smooth
+        'y_smooth': y_smooth,
+        'equation': get_equation
     }
+
+
+def fit_power_law_with_offset(x, y):
+    """
+    Fit a power law with offset y = k * x^alpha + c using iterative non-linear fitting.
+    
+    Args:
+        x (array-like): Independent variable
+        y (array-like): Dependent variable
+        
+    Returns:
+        dict: Dictionary containing:
+            - 'k': Multiplicative constant
+            - 'alpha': Power law exponent
+            - 'c': Constant offset
+            - 'r_squared': Coefficient of determination
+            - 'residuals': Residuals in linear space
+            - 'y_fitted': Fitted y values at original x points
+            - 'x_smooth': Smooth x values for plotting
+            - 'y_smooth': Smooth y values for plotting
+            - 'equation': Human-readable equation string
+    """
+    def power_law_with_offset(x_val, k, alpha, c):
+        """Power law with offset: y = k * x^alpha + c"""
+        return k * (x_val ** alpha) + c
+    
+    # Convert to numpy arrays
+    x = np.array(x)
+    y = np.array(y)
+    
+    try:
+        # Initial parameter guesses
+        # For k: use ratio of y range to x range with some power
+        y_range = np.max(y) - np.min(y)
+        x_range = np.max(x) - np.min(x)
+        k_guess = y_range / (x_range ** 0.5)  # Assume moderate power
+        
+        # For alpha: start with a reasonable power law exponent
+        alpha_guess = 1
+        
+        # For c: start with minimum y value as offset
+        c_guess = np.min(y)
+        
+        # Set reasonable bounds
+        # k should be positive
+        # alpha can be negative or positive but reasonable range
+        # c can be any value but let's constrain it somewhat
+        lower_bounds = [1e-10, -3.0, np.min(y) - np.abs(np.min(y))]
+        upper_bounds = [np.inf, 3.0, np.max(y)]
+        
+        # Fit the power law with offset
+        popt, pcov = curve_fit(
+            power_law_with_offset, 
+            x, y, 
+            p0=[k_guess, alpha_guess, c_guess],
+            bounds=(lower_bounds, upper_bounds),
+            maxfev=10000
+        )
+        
+        k, alpha, c = popt
+        
+        # Calculate fitted values
+        y_fitted = power_law_with_offset(x, k, alpha, c)
+        
+        # Calculate R-squared
+        ss_res = np.sum((y - y_fitted) ** 2)
+        ss_tot = np.sum((y - np.mean(y)) ** 2)
+        r_squared = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0
+        
+        # Calculate residuals
+        residuals = y - y_fitted
+        
+        # Generate smooth curve for plotting
+        x_smooth = np.logspace(np.log10(x.min()), np.log10(x.max()), 100)
+        y_smooth = power_law_with_offset(x_smooth, k, alpha, c)
+        
+        # Create equation function that receives parameter name
+        def get_equation(param_name="x"):
+            return f"{format_scientific_notation(k)} {param_name}^{{{alpha:.2f}}} + {format_scientific_notation(c)}"
+        
+        return {
+            'k': k,
+            'alpha': alpha,
+            'c': c,
+            'r_squared': r_squared,
+            'residuals': residuals,
+            'y_fitted': y_fitted,
+            'x_smooth': x_smooth,
+            'y_smooth': y_smooth,
+            'equation': get_equation
+        }
+        
+    except Exception as e:
+        print(f"Error fitting power law with offset: {e}")
+        # Fallback to simple linear fit if power law fails
+        coeffs = np.polyfit(x, y, 1)
+        k_fallback = coeffs[0]
+        c_fallback = coeffs[1]
+        alpha_fallback = 1.0
+        
+        y_fitted = k_fallback * x + c_fallback
+        residuals = y - y_fitted
+        
+        ss_res = np.sum(residuals ** 2)
+        ss_tot = np.sum((y - np.mean(y)) ** 2)
+        r_squared = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0
+        
+        x_smooth = np.linspace(x.min(), x.max(), 100)
+        y_smooth = k_fallback * x_smooth + c_fallback
+        
+        # Create equation function for fallback case
+        def get_equation_fallback(param_name="x"):
+            return f"Linear fallback: {k_fallback:.2e} {param_name} + {c_fallback:.2e}"
+        
+        return {
+            'k': k_fallback,
+            'alpha': alpha_fallback,
+            'c': c_fallback,
+            'r_squared': r_squared,
+            'residuals': residuals,
+            'y_fitted': y_fitted,
+            'x_smooth': x_smooth,
+            'y_smooth': y_smooth,
+            'equation': get_equation_fallback
+        }
 
 
 def fit_amdahls_law(threads, speedup):
