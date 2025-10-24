@@ -1,3 +1,14 @@
+/**
+ * @file common.h
+ * @author Andre Caseiro (andre.v.caseiro@tecnico.ulisboa.pt)
+ * @brief Set of common dependencies
+ * @version 0.1
+ * @date 2025-10-24
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
+
 #pragma once
 
 #include <matrix/csrd_matrix.h>

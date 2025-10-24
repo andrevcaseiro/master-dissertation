@@ -1,12 +1,12 @@
 /**
- * @file MonteCarloODESolver.cpp
+ * @file monte_carlo_ode_solver.cpp
  * @author Andre Caseiro (andre.v.caseiro@tecnico.ulisboa.pt)
- * @brief Monte Carlo Ordinary Diferential Equation solver
+ * @brief A class to solve ODEs using a Monte Carlo method
  * @version 0.1
- * @date 2025-03-18
- *
+ * @date 2025-10-24
+ * 
  * @copyright Copyright (c) 2025
- *
+ * 
  */
 
 #include "monte_carlo_ode_solver.h"

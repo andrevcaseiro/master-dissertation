@@ -1,3 +1,14 @@
+/**
+ * @file union_find.h
+ * @author Andre Caseiro (andre.v.caseiro@tecnico.ulisboa.pt)
+ * @brief Union find data structure for creating and merging nodes in a graph
+ * @version 0.1
+ * @date 2025-10-24
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
+
 #pragma once
 
 #include <vector>

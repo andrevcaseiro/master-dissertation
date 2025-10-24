@@ -1,3 +1,14 @@
+/**
+ * @file netlist.h
+ * @author Andre Caseiro (andre.v.caseiro@tecnico.ulisboa.pt)
+ * @brief A class to represent a netlist from a spice description
+ * @version 0.1
+ * @date 2025-10-24
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
+
 #pragma once
 
 #include <optional>

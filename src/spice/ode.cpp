@@ -1,3 +1,14 @@
+/**
+ * @file ode.cpp
+ * @author Andre Caseiro (andre.v.caseiro@tecnico.ulisboa.pt)
+ * @brief A class to represent an ODE system from an MNA system
+ * @version 0.1
+ * @date 2025-10-24
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
+
 #include "ode.h"
 
 ODE::ODE(const MNA& mna) : _size(mna.size()) {

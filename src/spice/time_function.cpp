@@ -1,3 +1,14 @@
+/**
+ * @file time_function.cpp
+ * @author Andre Caseiro (andre.v.caseiro@tecnico.ulisboa.pt)
+ * @brief A class for a time function with support for addition and multiplication by a scalar
+ * @version 0.1
+ * @date 2025-10-24
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
+
 #include "time_function.h"
 
 #include <sstream>

@@ -1,7 +1,7 @@
 /**
  * @file transient_analysis.h
  * @author Andre Caseiro (andre.v.caseiro@tecnico.ulisboa.pt)
- * @brief
+ * @brief Command to perform transient analysis on a circuit
  * @version 0.1
  * @date 2025-05-28
  *

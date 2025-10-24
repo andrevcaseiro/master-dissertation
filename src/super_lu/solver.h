@@ -1,3 +1,14 @@
+/**
+ * @file solver.h
+ * @author Andre Caseiro (andre.v.caseiro@tecnico.ulisboa.pt)
+ * @brief A SuperLU wrapper to solve a linear system with default options
+ * @version 0.1
+ * @date 2025-10-24
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
+
 #pragma once
 
 #include <Eigen/Sparse>

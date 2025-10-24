@@ -1,3 +1,14 @@
+/**
+ * @file dc_solver.cpp
+ * @author Andre Caseiro (andre.v.caseiro@tecnico.ulisboa.pt)
+ * @brief A class to solve the initial conditions of an MNA system
+ * @version 0.1
+ * @date 2025-10-24
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
+
 #include "dc_solver.h"
 
 #include <Eigen/IterativeLinearSolvers>
