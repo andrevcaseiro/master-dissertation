@@ -41,6 +41,17 @@ class HigFMODESolver {
                    const std::vector<std::unique_ptr<TimeFunction>>& b,
                    const std::vector<float>& x_0, float t, size_t row, size_t N);
 
+    /**
+     * @brief Compute the solution using Pardiso
+     * 
+     * @return std::vector<float> vector of size N+1 with solutions at times 0..t
+     */
     std::vector<float> solve_sequence() const;
+
+    /**
+     * @brief Compute the solution using conjugate gradient
+     * 
+     * @return std::vector<float> vector of size N+1 with solutions at times 0..t
+     */
     std::vector<float> solve_sequence_cg() const;
 };

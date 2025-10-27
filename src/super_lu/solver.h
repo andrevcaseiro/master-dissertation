@@ -25,7 +25,16 @@ class SuperLUSolver {
 
     enum Status { Success, SingularMatrix, InvalidInput, MemoryAllocation };
 
+    /**
+     * @brief Construct a new SuperLU Solver object
+     * 
+     */
     SuperLUSolver();
+
+    /**
+     * @brief Destroy the SuperLU Solver object
+     * 
+     */
     ~SuperLUSolver();
 
     /**

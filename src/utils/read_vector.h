@@ -14,4 +14,11 @@
 #include <string>
 #include <vector>
 
+/**
+ * @brief Reads a float vector from a file with size on first line
+ * and comma-separated values on second line
+ * 
+ * @param filepath filepath to read
+ * @return std::vector<float> vector from the file
+ */
 std::vector<float> read_vector(std::string filepath);
