@@ -72,6 +72,20 @@ struct TransientAnalysis {
         }
     }
 
+    void print_ode_overview(const ODE& ode) const {
+        // Print a compact overview of the ODE system: size, nnz, nnz/size
+        std::cout << "ODE overview:" << std::endl;
+        const auto size = ode.size();
+        const auto entries = size * size;
+        const auto nnz = ode.A().nonZeros();
+        double nnz_perc = size > 0 ? 100.0 * nnz / entries : 0.0;
+
+        std::cout << "- Size: " << size << " x " << size << std::endl;
+        std::cout << "- Non-zeros: " << nnz << " ("
+                  << std::fixed << std::setprecision(6) << nnz_perc << "%)"
+                  << std::endl << std::endl;
+    }
+
     void print_initial_conditions(const Eigen::VectorXf& x0, const MNA& mna) const {
         std::cout << "Initial conditions:\n";
         for (Eigen::Index i = 0; i < x0.size(); i++) {
@@ -234,6 +248,7 @@ struct TransientAnalysis {
         ODE ode(mna);
         print_execution_time("ODE creation", start_time);
         if (verbose) print_ode_matrices(ode);
+        print_ode_overview(ode);
 
         // Calculate initial conditions using DC analysis
         start_time = omp_get_wtime();

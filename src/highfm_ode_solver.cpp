@@ -55,6 +55,12 @@ std::vector<float> HigFMODESolver::solve_sequence() const {
     HighFM::Pardiso<float> solver;
     solver.factorize(LHS);
 
+    const long nnz = solver.param(17);
+    const double nnz_perc = 100.0 * nnz / (dim * dim);
+    std::cerr << "L+U NNZ: " << nnz << " ("
+              << std::fixed << std::setprecision(6) << nnz_perc
+              << " %)" << std::endl;
+
     double t = 0.0f;
     HighFM::Vector<float> b_n(dim), b_np1(dim), rhs(dim);
     for (size_t j = 0; j < dim; ++j) b_n(j) = _b[j]->operator()(t);

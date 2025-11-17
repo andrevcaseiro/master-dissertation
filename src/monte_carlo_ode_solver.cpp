@@ -97,6 +97,7 @@ void MonteCarloODESolver::init() {
         }
 
         _L.diagonal(row) -= sum;
+        if(_L.diagonal(row) > 0) std::cerr << "Row " << row << " has value " << _L.diagonal(row) << std::endl;
         _D[row] = sum;
     }
 
